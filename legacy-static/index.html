@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>onemore challenge · Official leaderboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;0,900;1,400&family=Noto+Sans+SC:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-badge">Shanghai</span>
+        <div>
+          <h1 class="brand-title">onemore challenge</h1>
+          <p class="brand-tagline">Prompt your creativity and get rewards</p>
+        </div>
+      </div>
+      <nav class="nav-tabs" aria-label="Main navigation">
+        <a href="#overview" class="nav-link active" data-section="overview">About &amp; rules</a>
+        <a href="#winners" class="nav-link" data-section="winners">Weekly winners</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="overview" class="panel section-active">
+      <div class="hero-card">
+        <h2 class="hero-heading">Prompt Your Creativity &amp; Get the Rewards!</h2>
+        <p class="hero-lead">
+          onemore challenge is an internal testing program (30 Apr - 22 May 2026) where teams submit prompt-based experiences and judges evaluate each entry with simple +1 / 0 scoring. Winners are published per batch.
+        </p>
+        <ul class="hero-tags">
+          <li>Shanghai, China</li>
+          <li>Mini Games + Interactive Content</li>
+          <li>4 winners per batch</li>
+        </ul>
+      </div>
+
+      <div class="grid-compact">
+        <article class="card card-accent">
+          <h3 class="card-title"><span class="title-icon">?</span> How to participate</h3>
+          <ol class="flow-steps">
+            <li><strong>Create</strong> a prompt-based submission on onemore.</li>
+            <li><strong>Submit</strong> using the official Google Form.</li>
+            <li><strong>Get reviewed</strong> by assigned judges (+1 Good / 0 Neutral).</li>
+            <li><strong>Wait for publish</strong> on announcement day for your batch.</li>
+          </ol>
+          <a id="submissionCta" class="cta-btn" href="#" target="_blank" rel="noopener">Submit via Google Form</a>
+          <p class="terms-note">CTA link is configurable from `app.js` (`CONFIG.gformUrl`) to match PRD requirement (updatable without redeploy once wired to admin).</p>
+        </article>
+
+        <article class="card">
+          <h3 class="card-title"><span class="title-icon">?</span> Challenge structure</h3>
+          <ul class="terms-list">
+            <li><strong>Content types</strong> — Mini Games and Interactive Content are evaluated separately.</li>
+            <li><strong>Winner structure</strong> — 2 winners per content type, 4 total winners per batch.</li>
+            <li><strong>Award names</strong> — Best Game Mechanics, Most Addictive Experience, Best Interactive Story, Best Interactive Experience.</li>
+            <li><strong>Criteria</strong> — creativity, interactivity, uniqueness.</li>
+            <li><strong>Scoring</strong> — Good = +1, Neutral = 0.</li>
+          </ul>
+        </article>
+      </div>
+
+      <article class="card schedule-card">
+        <h3 class="card-title"><span class="title-icon">?</span> Batch schedule</h3>
+        <div id="scheduleGrid" class="schedule-grid"></div>
+      </article>
+
+      <article class="card">
+        <details class="terms-collapsible">
+          <summary>Terms &amp; Conditions (compact)</summary>
+          <ul class="terms-list compact">
+            <li>By submitting, you confirm the content is original or properly licensed.</li>
+            <li>Submission data is synchronized from fixed Google Form columns (A-H); do not alter form structure.</li>
+            <li>Batch assignment follows form timestamp, not self-declared batch.</li>
+            <li>Judges evaluate in isolated queues; judges never see each other's votes.</li>
+            <li>Only published results appear publicly on this website.</li>
+          </ul>
+        </details>
+      </article>
+
+      <p class="jump-link"><a href="#winners" data-section-jump="winners">Go to leaderboard</a></p>
+    </section>
+
+    <section id="winners" class="panel">
+      <div class="winners-head">
+        <h2 class="section-h2">Weekly leaderboard</h2>
+        <p class="section-desc">Per PRD: batch tabs, split by content type, show winner name + award + link only.</p>
+      </div>
+
+      <div class="week-picker" role="tablist" aria-label="Select batch"></div>
+      <div id="batchState" class="batch-state"></div>
+      <div id="leaderboardContent" class="leaderboard-content"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>onemore challenge · Shanghai · 2026</p>
+    <p class="footer-muted">Leaderboard visibility follows publish state per batch.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

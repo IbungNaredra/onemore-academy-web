@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  JUDGE
+}
+
+enum ContentType {
+  MINI_GAMES
+  INTERACTIVE_CONTENT
+}
+
+enum BatchPublicState {
+  UPCOMING
+  ACTIVE
+  EVALUATING
+  PUBLISHED
+}
+
+enum JudgingRoundKind {
+  MAIN
+  RUNOFF
+}
+
+enum JudgingRoundStatus {
+  ACTIVE
+  CLOSED
+}
+
+/// Staff account (admin or judge). Password is bcrypt-hashed (see seed + Credentials auth).
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bracketAssignments JudgeBracketAssignment[]
+  votes              Vote[]
+}
+
+/// One of the three program batches (submission window + publish lifecycle).
+model ProgramBatch {
+  id               String           @id @default(cuid())
+  slug             String           @unique
+  label            String
+  submissionStart  DateTime
+  submissionEnd    DateTime
+  evaluationDate   DateTime?
+  announcementDate DateTime?
+  publicState      BatchPublicState @default(UPCOMING)
+  judgingLockedAt  DateTime?
+  /// Progressive cuts + runoffs for Mini Games (independent from Interactive).
+  multiRoundMiniGames     Boolean @default(false)
+  /// Progressive cuts + runoffs for Interactive (independent from Mini).
+  multiRoundInteractive   Boolean @default(false)
+  /// JSON array of ints, e.g. `[4, 2]` — successive pool sizes (Mini Games).
+  roundCutsMini          String?
+  /// JSON array of ints for Interactive Content.
+  roundCutsInteractive   String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  submissions   Submission[]
+  brackets        Bracket[]
+  winners         PublishedWinner[]
+  judgingRounds   JudgingRound[]
+}
+
+/// Form row synced from the Google Sheet (cols A–H). Deduplicated by email + UGC URL per PRD.
+model Submission {
+  id                String   @id @default(cuid())
+  submittedAt       DateTime
+  creatorEmail      String
+  creatorName       String
+  division          String?
+  batchSelfDeclared String?
+  postingDate       DateTime?
+  contentUrl        String
+  contentType       ContentType
+  /// Raw `col H` when it did not match allowed values (admin fixes before bracketing).
+  contentTypeRaw    String?
+  needsTypeReview   Boolean  @default(false)
+
+  /// Set on GSheet sync from col E (self-declared batch option), mapped to ProgramBatch by slug batch-1/2/3.
+  programBatchId String?
+  programBatch   ProgramBatch? @relation(fields: [programBatchId], references: [id], onDelete: SetNull)
+
+  bracketId String?
+  bracket   Bracket?  @relation(fields: [bracketId], references: [id], onDelete: SetNull)
+
+  disqualified     Boolean @default(false)
+  disqualifyReason String?
+  /// Multi-round: dropped from the live pool (scores kept for admin).
+  eliminatedFromJudging Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  votes        Vote[]
+  winnerRecord PublishedWinner?
+
+  @@unique([creatorEmail, contentUrl])
+  @@index([programBatchId])
+  @@index([bracketId])
+  @@index([contentType])
+}
+
+/// One judging phase per batch + content type (main rounds or tie runoff). Only one ACTIVE round per pair.
+model JudgingRound {
+  id            String             @id @default(cuid())
+  batchId       String
+  batch         ProgramBatch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  contentType   ContentType
+  /// Increments per batch+type (main and runoff rounds).
+  index         Int
+  kind          JudgingRoundKind   @default(MAIN)
+  status        JudgingRoundStatus @default(ACTIVE)
+  /// When true, locking does not auto-advance (finalists pool).
+  terminal      Boolean            @default(false)
+  /// After a MAIN lock: reduce the live pool to at most this many (next round / runoff).
+  eliminationTargetK Int?
+  /// RUNOFF only: pick this many top submissions by cumulative score when locked.
+  runoffPickCount    Int?
+  /// RUNOFF only: JSON array of submission IDs already advanced (sure), waiting for runoff to finish.
+  pendingAdvanceIds  String?
+  parentRoundId String?
+  parentRound   JudgingRound? @relation("RunoffChain", fields: [parentRoundId], references: [id], onDelete: SetNull)
+  childRunoffs  JudgingRound[] @relation("RunoffChain")
+  createdAt     DateTime      @default(now())
+
+  brackets Bracket[]
+
+  @@unique([batchId, contentType, index])
+  @@index([batchId, contentType, status])
+}
+
+/// Bracket pool per batch + content type (Mini Games never mixed with Interactive).
+model Bracket {
+  id          String      @id @default(cuid())
+  batchId     String
+  batch       ProgramBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  contentType ContentType
+  sortOrder   Int         @default(0)
+  judgingRoundId String?
+  judgingRound   JudgingRound? @relation(fields: [judgingRoundId], references: [id], onDelete: SetNull)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  submissions Submission[]
+  assignments JudgeBracketAssignment[]
+
+  @@index([batchId, contentType])
+  @@index([judgingRoundId])
+}
+
+model JudgeBracketAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bracketId String
+  bracket   Bracket  @relation(fields: [bracketId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, bracketId])
+}
+
+/// +1 Good / 0 Neutral per judge per submission (PRD §5–8).
+model Vote {
+  id           String   @id @default(cuid())
+  judgeId      String
+  judge        User     @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  score        Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([judgeId, submissionId])
+  @@index([submissionId])
+}
+
+/// Admin-published winners for the public leaderboard (no public score totals).
+model PublishedWinner {
+  id           String       @id @default(cuid())
+  batchId      String
+  batch        ProgramBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  contentType  ContentType
+  awardName    String
+  submissionId String       @unique
+  submission   Submission   @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  publishedAt  DateTime     @default(now())
+
+  @@index([batchId])
+}
