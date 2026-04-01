@@ -61,7 +61,13 @@ export function SnackbarFromSearchParams() {
     keysToDelete.forEach((k) => params.delete(k));
     const next = params.toString();
     const target = next ? `${pathname}?${next}` : pathname;
-    router.replace(target, { scroll: false });
+    // Defer stripping query params until after React commits the snackbar. Immediate
+    // `router.replace` with App Router can run in the same turn as navigation updates
+    // and the toast never paints in production (especially after server redirects).
+    const id = window.setTimeout(() => {
+      router.replace(target, { scroll: false });
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [pathname, router, searchParams, showError, showSuccess]);
 
   return null;

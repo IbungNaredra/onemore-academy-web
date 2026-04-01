@@ -46,6 +46,18 @@ Prisma CLI does not load `.env.local` by default when `prisma.config.ts` exists.
 
 **Google Sheets:** See **[`docs/GOOGLE-SHEETS.md`](docs/GOOGLE-SHEETS.md)** for column mapping, deduplication, batch assignment from col E, and troubleshooting.
 
+### Deploying to Vercel
+
+1. Use **hosted PostgreSQL** (Neon, Supabase, Vercel Postgres, etc.). **`localhost` in `DATABASE_URL` will not work** on Vercel — the deployment cannot reach your computer.
+2. In **Vercel → Project → Settings → Environment Variables**, set at least:
+   - **`AUTH_SECRET`** — long random string (e.g. `openssl rand -base64 32`). Required in production for NextAuth; missing it often causes **500** on auth/session routes.
+   - **`DATABASE_URL`** — provider URL for production. Prefer a **pooling** URL if the host offers one (Neon “pooled”); add `?sslmode=require` when the provider requires SSL.
+   - **`AUTH_URL`** (optional) — `https://<your-project>.vercel.app` if sign-in or callbacks misbehave (`trustHost` is already enabled in code).
+3. Point `DATABASE_URL` at production and run **`npx prisma db push`** (or migrate) once, then **`npm run db:seed`** if you need seeded users/batches.
+4. Redeploy after adding or changing variables.
+
+If the home page loads but the schedule is empty, open **Vercel → Logs** and look for **`[getScheduleBatches] Database error`** — usually wrong URL, SSL, or DB not reachable.
+
 ---
 
 ## Local development

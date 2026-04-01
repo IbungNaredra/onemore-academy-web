@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ContentType } from "@prisma/client";
 import { submitVote } from "@/app/judge/actions";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import type { JudgeQueueResult } from "@/lib/judge-queue";
 import type { JudgeVoteReturnPath } from "@/lib/judge-return-path";
 
@@ -72,9 +73,9 @@ export function JudgeQueueView({
                       <input type="hidden" name="submissionId" value={row.submissionId} />
                       <input type="hidden" name="score" value="1" />
                       <input type="hidden" name="returnTo" value={returnPath} />
-                      <button className="btn-judge-good" type="submit">
+                      <FormSubmitButton className="btn-judge-good" pendingLabel="Saving…">
                         Vote
-                      </button>
+                      </FormSubmitButton>
                     </form>
                   </div>
                 </div>

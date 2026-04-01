@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminNav } from "@/components/admin-nav";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { SignOutButton } from "@/components/sign-out-button";
 import { adminResetVote, applyRoundRobin } from "@/app/admin/actions";
 import { requireAdmin } from "@/lib/guards";
@@ -63,16 +64,16 @@ export default async function BatchResultsPage(props: PageProps) {
           <form action={applyRoundRobin}>
             <input type="hidden" name="batchId" value={batchId} />
             <input type="hidden" name="contentType" value="MINI_GAMES" />
-            <button type="submit" className="btn-ghost btn-small">
+            <FormSubmitButton className="btn-ghost btn-small" pendingLabel="Working…">
               Redistribute Mini Games
-            </button>
+            </FormSubmitButton>
           </form>
           <form action={applyRoundRobin}>
             <input type="hidden" name="batchId" value={batchId} />
             <input type="hidden" name="contentType" value="INTERACTIVE_CONTENT" />
-            <button type="submit" className="btn-ghost btn-small">
+            <FormSubmitButton className="btn-ghost btn-small" pendingLabel="Working…">
               Redistribute Interactive
-            </button>
+            </FormSubmitButton>
           </form>
         </div>
       </section>
@@ -153,9 +154,9 @@ export default async function BatchResultsPage(props: PageProps) {
                       <form action={adminResetVote} className="admin-inline">
                         <input type="hidden" name="voteId" value={v.voteId} />
                         <input type="hidden" name="batchId" value={batchId} />
-                        <button type="submit" className="btn-danger-ghost btn-small">
+                        <FormSubmitButton className="btn-danger-ghost btn-small" pendingLabel="…">
                           Reset
-                        </button>
+                        </FormSubmitButton>
                       </form>
                     </td>
                   </tr>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminNav } from "@/components/admin-nav";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { SignOutButton } from "@/components/sign-out-button";
 import {
   assignJudgeToBracket,
@@ -99,9 +100,9 @@ export default async function AdminBatchesPage() {
                     </option>
                   ))}
                 </select>
-                <button className="btn-primary btn-small" type="submit">
+                <FormSubmitButton className="btn-primary btn-small" pendingLabel="Saving…">
                   Save state
-                </button>
+                </FormSubmitButton>
               </form>
             </section>
 
@@ -118,9 +119,9 @@ export default async function AdminBatchesPage() {
               <form action={setBatchJudgingLock} className="admin-row-form">
                 <input type="hidden" name="batchId" value={batch.id} />
                 <input type="hidden" name="lock" value={batch.judgingLockedAt ? "0" : "1"} />
-                <button className="btn-ghost btn-small" type="submit">
+                <FormSubmitButton className="btn-ghost btn-small" pendingLabel="Working…">
                   {batch.judgingLockedAt ? "Unlock judging" : "Lock judging"}
-                </button>
+                </FormSubmitButton>
               </form>
             </section>
 
@@ -184,9 +185,9 @@ export default async function AdminBatchesPage() {
                     placeholder="[4,2]"
                   />
                 </div>
-                <button className="btn-ghost btn-small" type="submit">
+                <FormSubmitButton className="btn-ghost btn-small" pendingLabel="Saving…">
                   Save multi-round settings
-                </button>
+                </FormSubmitButton>
               </form>
             </section>
 
@@ -204,9 +205,9 @@ export default async function AdminBatchesPage() {
                         </span>
                         <form action={deleteBracket} className="admin-inline">
                           <input type="hidden" name="bracketId" value={br.id} />
-                          <button type="submit" className="btn-danger-ghost btn-small">
+                          <FormSubmitButton className="btn-danger-ghost btn-small" pendingLabel="…">
                             Remove bracket
-                          </button>
+                          </FormSubmitButton>
                         </form>
                       </div>
                       {br.assignments.length > 0 ? (
@@ -216,9 +217,9 @@ export default async function AdminBatchesPage() {
                               <span>{a.user.name ?? a.user.email}</span>
                               <form action={removeJudgeAssignment} className="admin-inline">
                                 <input type="hidden" name="assignmentId" value={a.id} />
-                                <button type="submit" className="btn-danger-ghost btn-small">
+                                <FormSubmitButton className="btn-danger-ghost btn-small" pendingLabel="…">
                                   Unassign
-                                </button>
+                                </FormSubmitButton>
                               </form>
                             </li>
                           ))}
@@ -237,9 +238,9 @@ export default async function AdminBatchesPage() {
                               </option>
                             ))}
                           </select>
-                          <button className="btn-ghost btn-small" type="submit">
+                          <FormSubmitButton className="btn-ghost btn-small" pendingLabel="Adding…">
                             Add judge
-                          </button>
+                          </FormSubmitButton>
                         </form>
                       ) : (
                         <p className="admin-hint admin-hint-tight">Create judge accounts under Judges first.</p>
@@ -261,9 +262,9 @@ export default async function AdminBatchesPage() {
                   className="admin-input-narrow"
                   aria-label="Sort order"
                 />
-                <button className="btn-ghost btn-small" type="submit">
+                <FormSubmitButton className="btn-ghost btn-small" pendingLabel="Adding…">
                   Add bracket
-                </button>
+                </FormSubmitButton>
               </form>
             </section>
 
@@ -284,9 +285,9 @@ export default async function AdminBatchesPage() {
                 </p>
                 <form action={autoLinkBatchSubmissions} className="admin-row-form admin-row-form-wrap">
                   <input type="hidden" name="batchId" value={batch.id} />
-                  <button className="btn-primary btn-small" type="submit">
+                  <FormSubmitButton className="btn-primary btn-small" pendingLabel="Linking…">
                     Auto-link all submissions
-                  </button>
+                  </FormSubmitButton>
                 </form>
                 <p className="admin-hint admin-hint-tight">
                   Assigns each row to the bracket that matches Mini Games vs Interactive. If you have multiple
@@ -326,9 +327,9 @@ export default async function AdminBatchesPage() {
                       ))}
                     </select>
                   </div>
-                  <button className="btn-ghost btn-small" type="submit">
+                  <FormSubmitButton className="btn-ghost btn-small" pendingLabel="Linking…">
                     Link
-                  </button>
+                  </FormSubmitButton>
                 </form>
               </section>
             ) : null}
@@ -358,9 +359,9 @@ export default async function AdminBatchesPage() {
                         <td>
                           <form action={deletePublishedWinner}>
                             <input type="hidden" name="winnerId" value={w.id} />
-                            <button type="submit" className="btn-danger-ghost btn-small">
+                            <FormSubmitButton className="btn-danger-ghost btn-small" pendingLabel="…">
                               Remove
-                            </button>
+                            </FormSubmitButton>
                           </form>
                         </td>
                       </tr>
@@ -412,9 +413,9 @@ export default async function AdminBatchesPage() {
                     <option value={ContentType.INTERACTIVE_CONTENT}>Interactive Content</option>
                   </select>
                 </div>
-                <button className="btn-primary btn-small" type="submit">
+                <FormSubmitButton className="btn-primary btn-small" pendingLabel="Saving…">
                   Add winner
-                </button>
+                </FormSubmitButton>
               </form>
             </section>
           </article>

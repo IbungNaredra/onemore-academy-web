@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { AdminNav } from "@/components/admin-nav";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { SignOutButton } from "@/components/sign-out-button";
 import {
   fixSubmissionContentType,
@@ -80,9 +81,9 @@ export default async function AdminSubmissionsPage(props: PageProps) {
           <code>.env.local</code>. Share the spreadsheet with the service account client email.
         </p>
         <form action={syncGoogleSheet}>
-          <button className="btn-primary btn-small" type="submit">
+          <FormSubmitButton className="btn-primary btn-small" pendingLabel="Syncing…">
             Pull from Google Sheet
-          </button>
+          </FormSubmitButton>
         </form>
       </section>
 
@@ -118,9 +119,9 @@ export default async function AdminSubmissionsPage(props: PageProps) {
           </select>
           {flaggedOnly ? <input type="hidden" name="flagged" value="1" /> : null}
           {dqOnly ? <input type="hidden" name="dq" value="1" /> : null}
-          <button className="btn-ghost btn-small" type="submit">
+          <FormSubmitButton className="btn-ghost btn-small" pendingLabel="…">
             Apply
-          </button>
+          </FormSubmitButton>
         </form>
       </section>
 
@@ -170,18 +171,18 @@ export default async function AdminSubmissionsPage(props: PageProps) {
                         <option value="MINI_GAMES">Mini Games</option>
                         <option value="INTERACTIVE_CONTENT">Interactive Content</option>
                       </select>
-                      <button type="submit" className="btn-primary btn-small">
+                      <FormSubmitButton className="btn-primary btn-small" pendingLabel="Saving…">
                         Set type
-                      </button>
+                      </FormSubmitButton>
                     </form>
                   ) : null}
                   {s.disqualified ? (
                     <form action={setSubmissionDisqualified} className="admin-action-form">
                       <input type="hidden" name="submissionId" value={s.id} />
                       <input type="hidden" name="disqualified" value="0" />
-                      <button type="submit" className="btn-ghost btn-small">
+                      <FormSubmitButton className="btn-ghost btn-small" pendingLabel="…">
                         Reinstate
-                      </button>
+                      </FormSubmitButton>
                     </form>
                   ) : (
                     <form action={setSubmissionDisqualified} className="admin-action-form">
@@ -193,9 +194,9 @@ export default async function AdminSubmissionsPage(props: PageProps) {
                         className="admin-input-tiny"
                         aria-label="Disqualify reason"
                       />
-                      <button type="submit" className="btn-danger-ghost btn-small">
+                      <FormSubmitButton className="btn-danger-ghost btn-small" pendingLabel="…">
                         Disqualify
-                      </button>
+                      </FormSubmitButton>
                     </form>
                   )}
                 </td>

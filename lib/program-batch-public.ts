@@ -38,12 +38,18 @@ const contentLabel: Record<ContentType, string> = {
 };
 
 export async function getLeaderboardBatches(): Promise<LeaderboardBatchDto[]> {
-  const batches = await prisma.programBatch.findMany({
-    orderBy: { submissionStart: "asc" },
-    include: {
-      winners: { include: { submission: true } },
-    },
-  });
+  let batches;
+  try {
+    batches = await prisma.programBatch.findMany({
+      orderBy: { submissionStart: "asc" },
+      include: {
+        winners: { include: { submission: true } },
+      },
+    });
+  } catch (err) {
+    console.error("[getLeaderboardBatches] Database error:", err);
+    return [];
+  }
 
   return batches.map((b) => {
     const miniGames: WinnerEntryDto[] = [];
@@ -73,9 +79,15 @@ export async function getLeaderboardBatches(): Promise<LeaderboardBatchDto[]> {
 }
 
 export async function getScheduleBatches(): Promise<ScheduleBatchDto[]> {
-  const batches = await prisma.programBatch.findMany({
-    orderBy: { submissionStart: "asc" },
-  });
+  let batches;
+  try {
+    batches = await prisma.programBatch.findMany({
+      orderBy: { submissionStart: "asc" },
+    });
+  } catch (err) {
+    console.error("[getScheduleBatches] Database error:", err);
+    return [];
+  }
   return batches.map((b) => ({
     id: b.id,
     label: b.label,

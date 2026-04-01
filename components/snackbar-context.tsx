@@ -19,7 +19,7 @@ type SnackbarContextValue = {
 
 const SnackbarContext = createContext<SnackbarContextValue | null>(null);
 
-const DEFAULT_MS = 5200;
+const DEFAULT_MS = 3200;
 
 export function useSnackbar(): SnackbarContextValue {
   const ctx = useContext(SnackbarContext);
