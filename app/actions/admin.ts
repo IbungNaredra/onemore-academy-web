@@ -7,6 +7,9 @@ import { refreshNormalizedScoresForBatchCategory } from "@/lib/scoring";
 import bcrypt from "bcryptjs";
 import { BatchStatus, ContentCategory, UserRole, SubmissionStatus } from "@prisma/client";
 import { recomputeCanVote } from "@/lib/eligibility";
+import { parseShanghaiDatetimeLocalToUtc } from "@/lib/datetime-shanghai";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 async function requireAdminUser() {
   const session = await auth();
@@ -19,16 +22,64 @@ async function requireAdminUser() {
 export async function adminSetBatchStatus(batchId: string, status: BatchStatus) {
   await requireAdminUser();
   await prisma.programBatch.update({ where: { id: batchId }, data: { status } });
+  revalidatePath("/admin/batch");
+}
+
+/** Update batch transition times from admin `datetime-local` fields (Asia/Shanghai). */
+export async function adminSetBatchSchedule(batchId: string, formData: FormData) {
+  await requireAdminUser();
+
+  let openAt: Date;
+  let votingAt: Date;
+  let concludedAt: Date;
+  let leaderboardPublishAt: Date | null;
+
+  try {
+    const o = parseShanghaiDatetimeLocalToUtc(String(formData.get("openAt") ?? ""));
+    const v = parseShanghaiDatetimeLocalToUtc(String(formData.get("votingAt") ?? ""));
+    const c = parseShanghaiDatetimeLocalToUtc(String(formData.get("concludedAt") ?? ""));
+    const pubRaw = String(formData.get("leaderboardPublishAt") ?? "").trim();
+    const p = pubRaw ? parseShanghaiDatetimeLocalToUtc(pubRaw) : null;
+
+    if (!o || !v || !c) {
+      redirect("/admin/batch?error=schedule");
+    }
+    openAt = o;
+    votingAt = v;
+    concludedAt = c;
+    leaderboardPublishAt = p;
+  } catch {
+    redirect("/admin/batch?error=schedule");
+  }
+
+  if (openAt >= votingAt || votingAt >= concludedAt) {
+    redirect("/admin/batch?error=order");
+  }
+
+  await prisma.programBatch.update({
+    where: { id: batchId },
+    data: {
+      openAt,
+      votingAt,
+      concludedAt,
+      leaderboardPublishAt,
+    },
+  });
+  revalidatePath("/admin/batch");
+  revalidatePath("/submit");
+  redirect("/admin/batch?ok=schedule");
 }
 
 export async function adminToggleAutoTransition(batchId: string, auto: boolean) {
   await requireAdminUser();
   await prisma.programBatch.update({ where: { id: batchId }, data: { autoTransition: auto } });
+  revalidatePath("/admin/batch");
 }
 
 export async function adminRunPrepareVoting(batchId: string) {
   await requireAdminUser();
   await prepareBatchForVoting(batchId);
+  revalidatePath("/admin/batch");
 }
 
 export async function adminDisqualify(submissionId: string, reason: string) {
