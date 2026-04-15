@@ -1,10 +1,12 @@
-# Google Sheets sync
+# Google Sheets sync (deprecated)
 
-Admin-triggered pull from a linked spreadsheet (**Google Sheets API v4**). Entry point: **`/admin/submissions`** → **Pull from Google Sheet**.
+> **This document applied to PRD v1.3 only.** The **current** app (**PRD v2.2**) has **no** Google Sheet or Google Form integration — submissions are created in-app. See **[PRD-V2.2-IMPLEMENTATION.md](./PRD-V2.2-IMPLEMENTATION.md)**.
+
+The following content is **archived** for teams maintaining old deployments or understanding historical column mapping.
 
 ---
 
-## Environment
+## Environment (v1.3)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -17,60 +19,23 @@ Enable **Google Sheets API** for the GCP project, create a **service account**, 
 
 ---
 
-## Column mapping (A–H)
+## Column mapping (A–H) — historical
 
-Aligned with `prisma/schema.prisma` → `Submission` and `lib/sheets-sync.ts`.
-
-| Col | Sheet field | DB / behavior |
+| Col | Sheet field | Intended DB / behavior (v1.3) |
 |-----|-------------|----------------|
-| A | Timestamp | `submittedAt` — parsed from Sheets serial or string |
-| B | Email | `creatorEmail` (normalized lowercase) |
+| A | Timestamp | `submittedAt` |
+| B | Email | `creatorEmail` |
 | C | Full name | `creatorName` |
 | D | Division | `division` (optional) |
-| E | Which batch (fixed choice) | `batchSelfDeclared` (raw text) **and** used to set **`programBatchId`** by matching **Batch 1** / **Batch 2** / **Batch 3** → slugs `batch-1`, `batch-2`, `batch-3` (`lib/batch-from-declared.ts`) |
+| E | Which batch (fixed choice) | `batchSelfDeclared` + `programBatchId` via batch slugs |
 | F | Content posting date | `postingDate` (optional) |
-| G | UGC link | `contentUrl` — part of the unique key |
-| H | Content type | Maps to Mini Games / Interactive; unknown values → `needsTypeReview` + `contentTypeRaw` |
+| G | UGC link | `contentUrl` — part of unique key with email |
+| H | Content type | Mini Games / Interactive; flagged rows if unknown |
 
-The **header row** must have **at least 8 columns** or sync returns an error.
-
----
-
-## Deduplication (unchanged)
-
-**One row in the database per (`creatorEmail`, `contentUrl`).**  
-If several sheet rows share the same email and link, each sync **updates** the same submission (last row wins for fields). This matches the PRD unique constraint `@@unique([creatorEmail, contentUrl])`.
+The v1.3 sync lived in removed modules (`lib/sheets-sync.ts`, etc.) and **`/admin/submissions`** pull — those are **not** present in the v2.2 codebase.
 
 ---
 
-## Optional utility
+## Deduplication (historical)
 
-Minify a downloaded key file for single-line `GOOGLE_SERVICE_ACCOUNT_JSON`:
-
-```bash
-npm run minify:google-key
-```
-
-Reads `google-service-account.json` in the project root by default (see `scripts/minify-service-account-json.mjs`).
-
----
-
-## Code references
-
-| File | Role |
-|------|------|
-| `lib/sheets-sync.ts` | API call, row loop, upsert |
-| `lib/sheet-parsing.ts` | Col H content types, cell dates |
-| `lib/batch-from-declared.ts` | Col E → `programBatchId` |
-| `lib/find-batch-for-date.ts` | Optional **timestamp-based** batch (not used by sync; reserved if needed) |
-
----
-
-## Troubleshooting
-
-| Symptom | Check |
-|---------|--------|
-| No rows | Tab name: use **`Form Responses 1`** (or set `GOOGLE_SHEETS_RANGE` correctly). Wrong tab → empty range. |
-| `JSON.parse` / credentials | Use **file path** env or **single-line** JSON; never multi-line in `.env`. |
-| API 403 / not found | Spreadsheet shared with service account email; `GOOGLE_SHEETS_SPREADSHEET_ID` correct. |
-| Batch shows "—" after sync | Col E must contain text matching **Batch 1**, **Batch 2**, or **Batch 3** (word boundaries). Adjust form labels or extend `lib/batch-from-declared.ts`. |
+v1.3 used `@@unique([creatorEmail, contentUrl])` on sheet-shaped submissions. v2.2 uses **per-batch** `@@unique([batchId, contentUrl])` with **`userId`** on submissions — see [`prisma/schema.prisma`](../prisma/schema.prisma).

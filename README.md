@@ -1,6 +1,8 @@
-# onemore challenge — leaderboard & judging
+# onemore challenge — voting website (PRD v2.2)
 
-Web app for the **onemore challenge** program: public schedule and leaderboard, staff authentication, **admin** tools (Google Sheet sync, batches, brackets, judges, scores, published winners), and a **judge** voting queue (+1 / 0 per submission). Data lives in **PostgreSQL** via **Prisma**; the UI is **Next.js** (App Router) with **NextAuth** (credentials).
+Web app for **onemore Internal Testing** (PRD v2.2): **self-registration** (Garena email), **in-app UGC submissions**, **group-based voting** (1–5, all-or-nothing per group), **normalized scores**, and a **public leaderboard** (with optional internal Top 10). **Admin** manages users, batch lifecycle, voter assignment prep, disqualifications, and publishing winners. **No Google Sheets or Google Forms** — data is **PostgreSQL** via **Prisma**; UI is **Next.js** (App Router) with **NextAuth** (credentials).
+
+**Docs:** [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md) (what ships vs the spec), [`docs/README.md`](docs/README.md) (index). Historical **v1.3** PRD: [`docs/PRD.md`](docs/PRD.md).
 
 ---
 
@@ -10,10 +12,9 @@ Web app for the **onemore challenge** program: public schedule and leaderboard, 
 |--------|--------|
 | Framework | Next.js (App Router), React |
 | Auth | NextAuth v5 (Credentials provider) |
-| Database | PostgreSQL 16 |
+| Database | PostgreSQL |
 | ORM | Prisma |
-| Passwords | bcrypt (users in DB) |
-| Integrations | Google Sheets API v4 (`googleapis`) for admin sync |
+| Passwords | bcrypt (`User.passwordHash`) |
 
 ---
 
@@ -31,48 +32,31 @@ Copy `.env.example` to `.env.local` and adjust values.
 | Variable | Purpose |
 |----------|---------|
 | `AUTH_SECRET` | Secret for NextAuth session signing (long random string) |
-| `DATABASE_URL` | PostgreSQL connection string (includes `?schema=public` if needed) |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Defaults for seed + fallback when DB is unavailable |
-| `JUDGE_EMAIL` / `JUDGE_PASSWORD` | Same for the sample judge account |
-| `NEXT_PUBLIC_GFORM_URL` | Public Google Form link for the main CTA |
-| `GOOGLE_SHEETS_SPREADSHEET_ID` | Spreadsheet ID from the Google Sheets URL (for admin sync) |
-| `GOOGLE_SERVICE_ACCOUNT_JSON_FILE` | **Recommended:** path to service account JSON (e.g. `./google-service-account.json`). Multi-line JSON cannot live in `.env`. |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | Alternative: entire key as **one minified line** |
-| `GOOGLE_SHEETS_RANGE` | Optional A1 range; default **`'Form Responses 1'!A:H`**. Use double-quoted env value if needed: `GOOGLE_SHEETS_RANGE="'Form Responses 1'!A:H"` |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seed admin user (must match seed after `db:seed`) |
+| `CRON_SECRET` | Optional: `Authorization: Bearer` for `GET /api/cron/batch-transitions` |
 
-**Important:** When `DATABASE_URL` is set and migrated/seeded, sign-in uses **User** rows in the database. The env passwords must match what you hashed in seed (or reset passwords in Admin).
+**Important:** When `DATABASE_URL` is set and migrated/seeded, sign-in uses **User** rows in the database.
 
-Prisma CLI does not load `.env.local` by default when `prisma.config.ts` exists. This project uses **`prisma.config.ts`** to load `.env` and **`.env.local`** (with override) before Prisma runs, so `npx prisma …` and `npm run db:seed` see `DATABASE_URL` the same way Next.js does.
+Prisma CLI loads `.env` / `.env.local` via **`prisma.config.ts`** (override from `.env.local`) so `npx prisma …` and `npm run db:seed` see `DATABASE_URL` the same way Next.js does.
 
-**Google Sheets:** See **[`docs/GOOGLE-SHEETS.md`](docs/GOOGLE-SHEETS.md)** for column mapping, deduplication, batch assignment from col E, and troubleshooting.
+### Deploying (e.g. Vercel)
 
-### Deploying to Vercel
-
-1. Use **hosted PostgreSQL** (Neon, Supabase, Vercel Postgres, etc.). **`localhost` in `DATABASE_URL` will not work** on Vercel — the deployment cannot reach your computer.
-2. In **Vercel → Project → Settings → Environment Variables**, set at least:
-   - **`AUTH_SECRET`** — long random string (e.g. `openssl rand -base64 32`). Required in production for NextAuth; missing it often causes **500** on auth/session routes.
-   - **`DATABASE_URL`** — provider URL for production. Prefer a **pooling** URL if the host offers one (Neon “pooled”); add `?sslmode=require` when the provider requires SSL.
-   - **`AUTH_URL`** (optional) — `https://<your-project>.vercel.app` if sign-in or callbacks misbehave (`trustHost` is already enabled in code).
-3. Point `DATABASE_URL` at production and run **`npx prisma db push`** (or migrate) once, then **`npm run db:seed`** if you need seeded users/batches.
-4. Redeploy after adding or changing variables.
-
-If the home page loads but the schedule is empty, open **Vercel → Logs** and look for **`[getScheduleBatches] Database error`** — usually wrong URL, SSL, or DB not reachable.
+1. Use **hosted PostgreSQL**. **`localhost` in `DATABASE_URL` will not work** on serverless hosts.
+2. Set **`AUTH_SECRET`**, **`DATABASE_URL`**, and optionally **`AUTH_URL`** (`https://<project>.vercel.app`).
+3. Run **`npx prisma migrate deploy`** (or `db push` for a throwaway DB), then **`npm run db:seed`** if you need seeded users/batches.
 
 ---
 
 ## Local development
 
-### 1. Start PostgreSQL
-
-Using the bundled Compose file:
+### 1. Start PostgreSQL (optional)
 
 ```bash
 docker compose up -d
 ```
 
-Default URL (matches `.env.example`):
-
-`postgresql://onemore:onemore@localhost:5432/onemore_challenge?schema=public`
+Example URL: `postgresql://onemore:onemore@localhost:5432/onemore_challenge?schema=public`
 
 ### 2. Install dependencies
 
@@ -80,21 +64,19 @@ Default URL (matches `.env.example`):
 npm install
 ```
 
-If you hit peer dependency conflicts with `next-auth`, this repo may use **`.npmrc`** with `legacy-peer-deps=true`.
-
-### 3. Push schema and seed
+### 3. Migrate and seed
 
 ```bash
-npx prisma db push
+npx prisma migrate deploy
 npm run db:seed
 ```
 
 Seed creates:
 
-- **Admin** and **judge** users (emails/passwords from env or defaults in `prisma/seed.ts`)
-- **Three program batches** (`batch-1`, `batch-2`, `batch-3`) with dates; states **Batch 1 = EVALUATING**, **Batch 2 = ACTIVE**, **Batch 3 = UPCOMING** (Batch 1 judging lock cleared)
-- **Batch 1 test UGC**: **100** Mini Games + **20** Interactive (`*@bulk-load.onemore.local`, distinct `example.com/bulk-load/...` URLs); seed also clears legacy `*@voting-e2e.onemore.local` rows. Batch 1 **published winners** are cleared; **Google Sheet–synced** submissions in Batch 1 (other emails) are left intact
-- **Judge setup for batch-1**: Mini Games and Interactive brackets, all Batch 1 submissions linked to the matching bracket by content type, sample judge assigned to both brackets
+- **Admin** user (default `admin.onemorechallenge@garena.com` / `admin123` unless overridden by env)
+- **Demo participant** (`participant.demo@garena.com` / `participant123`)
+- **Three batches** (`batch-1` … `batch-3`) with PRD-style May 2026 dates, status **OPEN**
+- One **demo submission** on Batch 1 for the demo participant
 
 ### 4. Run the app
 
@@ -102,13 +84,7 @@ Seed creates:
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). You need **both** the database (if using features that read/write it) and the dev server.
-
-### 5. Google Sheet sync (optional)
-
-1. Configure `GOOGLE_*` variables and place **`google-service-account.json`** (or minify into env — `npm run minify:google-key`).
-2. Share the spreadsheet with the service account email.
-3. Sign in as admin → **`/admin/submissions`** → **Pull from Google Sheet**.
+Open [http://localhost:3000](http://localhost:3000) — `/` redirects to `/info` or `/vote` when signed in.
 
 ---
 
@@ -119,13 +95,12 @@ Open [http://localhost:3000](http://localhost:3000). You need **both** the datab
 | `npm run dev` | Next.js dev server |
 | `npm run build` | `prisma generate` + production build |
 | `npm run start` | Production server |
-| `npm run lint` | ESLint (if configured) |
+| `npm run lint` | ESLint |
 | `npm run db:generate` | Prisma Client |
-| `npm run db:push` | Push schema to DB (dev) |
+| `npm run db:push` | Push schema (dev) |
 | `npm run db:migrate` | Migrations (dev) |
 | `npm run db:studio` | Prisma Studio |
 | `npm run db:seed` | Run `prisma/seed.ts` |
-| `npm run minify:google-key` | Print one-line `GOOGLE_SERVICE_ACCOUNT_JSON=` from `google-service-account.json` |
 
 ---
 
@@ -133,133 +108,57 @@ Open [http://localhost:3000](http://localhost:3000). You need **both** the datab
 
 ```
 app/
-  api/auth/[...nextauth]/route.ts   # NextAuth handlers
-  page.tsx                          # Home — schedule from DB
-  leaderboard/page.tsx              # Public leaderboard from DB
-  login/page.tsx                    # Staff login
-  me/page.tsx                       # Redirects admin → /admin, judge → /judge
-  judge/page.tsx                    # Judge voting queue (shuffled order, completion banner)
-  judge/actions.ts                  # Server actions: submitVote
-  admin/page.tsx                    # Admin overview
-  admin/judges/page.tsx             # Create / reset judge passwords
-  admin/submissions/page.tsx        # GSheet sync, filters, flagged col H, disqualify
-  admin/batches/page.tsx            # Batches, brackets, locks, assignments, winners
-  admin/batches/[batchId]/results/page.tsx  # Aggregated scores, judge completion, round-robin, vote reset
-  admin/actions.ts                  # Server actions (sync + admin + judge assignment)
-  globals.css                       # Global styles (including admin / judge)
-components/
-  site-header.tsx, site-footer.tsx  # Public chrome (footer “Staff” → login)
-  schedule-grid.tsx                 # Home schedule UI
-  leaderboard-view.tsx              # Leaderboard UI (batch tabs)
-  login-form.tsx, sign-out-button.tsx, providers.tsx
-  admin-nav.tsx, admin-judge-forms.tsx
+  api/auth/[...nextauth]/route.ts    # NextAuth
+  api/auth/register/route.ts         # Self-registration
+  api/cron/batch-transitions/route.ts # Optional cron (CRON_SECRET)
+  actions/                           # Server actions: submit, vote, admin
+  auth/page.tsx                      # Login + register
+  info/page.tsx                      # Challenge info + schedule
+  submit/page.tsx                    # UGC submission
+  vote/page.tsx, vote/[groupId]/     # Group voting
+  leaderboard/page.tsx               # Winners + internal Top 10
+  finalist/page.tsx                  # Internal finalist view
+  admin/                             # Users, batch, submissions, winners
 lib/
-  prisma.ts                         # Prisma client singleton
-  guards.ts                         # requireAdmin, requireJudge
-  program-batch-public.ts           # Queries for public schedule / leaderboard
-  leaderboard-types.ts              # Shared types + batchStateLine
-  challenge-data.ts                 # Public config (e.g. GForm URL)
-  judge-queue.ts                    # Judge queue (isolated, shuffled rows)
-  sheets-sync.ts                    # Google Sheets pull + upsert
-  sheet-parsing.ts                  # Col H, dates
-  batch-from-declared.ts            # Col E → programBatchId (batch-1/2/3)
-  find-batch-for-date.ts            # Optional: batch from timestamp (not used by sync)
-  admin-insights.ts                 # Aggregated scores, judge completion, votes list
-  bracket-round-robin.ts            # PRD §6: assign submissions to brackets (single pool or round-robin); used by auto-link + results UI
+  group-algorithm.ts, voting-assign.ts, eligibility.ts, scoring.ts
+  batch-jobs.ts, url-check.ts, divisions.ts, program-batch-public.ts
 prisma/
-  schema.prisma                     # Data model
-  seed.ts                           # Seed + demo data + judge brackets
-prisma.config.ts                    # Env load order + seed for Prisma CLI
-auth.ts                             # NextAuth configuration
-types/auth.d.ts                     # Session / JWT (role, id)
-scripts/
-  minify-service-account-json.mjs   # Helper for one-line service account JSON
-legacy-static/                      # Older static prototype (not the Next app)
-docker-compose.yml                  # Local Postgres
-.env.example                        # Documented env template
+  schema.prisma, migrations/, seed.ts
+auth.ts                              # NextAuth (DB users only)
+types/next-auth.d.ts
 docs/
-  PRD.md                            # Product requirements (v1.3 + §14 implementation notes)
-  GOOGLE-SHEETS.md                  # Sheet sync, columns, env, troubleshooting
+  PRD-V2.2-IMPLEMENTATION.md         # Current implementation status
+  PRD.md                             # Historical v1.3 PRD
+  GOOGLE-SHEETS.md                   # Deprecated (v1.3 only)
 ```
 
 ---
 
 ## Data model (summary)
 
-Defined in `prisma/schema.prisma`:
-
-| Model | Role |
-|-------|------|
-| **User** | Staff: `ADMIN` or `JUDGE`, bcrypt `passwordHash` |
-| **ProgramBatch** | Batch windows, `publicState`, optional **`judgingLockedAt`** |
-| **Submission** | Creator, UGC URL, `contentType`, `batchSelfDeclared`, optional `programBatchId` (set from **col E** on sync), optional `bracketId` |
-| **Bracket** | Pool per batch + content type |
-| **JudgeBracketAssignment** | `@@unique([userId, bracketId])` |
-| **Vote** | Score **0 or 1**; `@@unique([judgeId, submissionId])` |
-| **PublishedWinner** | Admin-published rows for the public leaderboard |
-
-**Deduplication:** `@@unique([creatorEmail, contentUrl])` — one DB row per email + link.
-
-Judges only see submissions that are **in a bracket** they are **assigned** to (and not disqualified).
+See [`prisma/schema.prisma`](prisma/schema.prisma): **User** (roles + division), **ProgramBatch** (`OPEN` / `VOTING` / `CONCLUDED`, transition timestamps), **Submission** (per user + batch, `batchId` + `contentUrl` unique), **ContentGroup** / **GroupSubmission** / **GroupVoterAssignment** / **Rating**, **BatchVoterEligibility**, **PublishedWinner**.
 
 ---
 
-## Routes and behavior
-
-### Public
+## Routes (high level)
 
 | Path | Description |
 |------|-------------|
-| `/` | Challenge schedule (batches from DB), GForm CTA, terms |
-| `/leaderboard` | Winners per published batch (batch tabs; Mini vs Interactive) |
-| Footer **Staff** | Links to `/login` |
+| `/info` | Challenge info, schedule |
+| `/auth` | Login + register |
+| `/submit` | Submissions (batch OPEN) |
+| `/vote` | Vote queue |
+| `/leaderboard` | Public leaderboard + internal section (role-gated) |
+| `/admin/*` | Admin panel |
 
-### Staff auth
-
-| Path | Description |
-|------|-------------|
-| `/login` | Email/password; `callbackUrl` supported |
-| `/me` | **admin** → `/admin`, **judge** → `/judge` |
-
-### Admin (role: admin)
-
-| Path | Description |
-|------|-------------|
-| `/admin` | Overview |
-| `/admin/judges` | Create judges, reset passwords |
-| `/admin/submissions` | **Sync Google Sheet**, filters, **flagged col H**, **disqualify** |
-| `/admin/batches` | Public state, judging lock, brackets, judge assignment, **bulk auto-link submissions → brackets**, optional single-row link override, published winners |
-| `/admin/batches/[batchId]/results` | **Aggregated scores**, **per-judge bracket completion**, **round-robin** (per content type), **reset vote** |
-
-Server actions: `app/admin/actions.ts` (includes `syncGoogleSheet`, `autoLinkBatchSubmissions`, bracket actions, etc.).
-
-#### Linking many submissions to brackets (admin)
-
-After **Google Sheet sync** (or any import), each row needs a **`bracketId`** so judges see it. Linking one submission at a time does not scale past a handful of rows.
-
-On **`/admin/batches`**, for each program batch:
-
-1. Create at least one **bracket** per content type you need (**Mini Games**, **Interactive Content**).
-2. Use **Auto-link all submissions**. That runs the same distribution as **PRD §6**: every non-disqualified submission in the batch is assigned to a bracket that matches its **content type**. If there is **only one bracket** for that type, all matching rows go to that pool. If there are **several brackets** for the same type, rows are spread **round-robin** across them (same logic as **Round-robin (PRD §6)** on **`/admin/batches/[batchId]/results`** — *Redistribute Mini Games* / *Redistribute Interactive*).
-3. Use **Link one submission (override)** only for exceptions (e.g. moving one row to a different pool).
-
-Submissions stay unlinked if there is **no bracket** for their content type—create the bracket first, then auto-link again.
-
-### Judge (role: judge)
-
-| Path | Description |
-|------|-------------|
-| `/judge` | Isolated queue: **Good (+1)** / **Neutral (0)**; shuffled order; completion banner; respects batch lock |
-
-`app/judge/actions.ts` — `submitVote`.
+Full table: [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md).
 
 ---
 
-## Authentication details
+## Authentication
 
-- **`lib/guards.ts`**: `requireAdmin()`, `requireJudge()`.
-- Session: **`role`**, **`id`** (JWT `sub`) for DB alignment.
-- If the DB is unreachable, `auth.ts` may fall back to env-only credentials (dev only).
+- **`lib/guards.ts`**: `requireAdmin`, `requireInternalOrAdmin`, `requireSession`, etc.
+- Session includes **`role`** (`admin` | `participant` | `fallback_voter` | `internal_team`) and **`id`**.
 
 ---
 
@@ -271,7 +170,7 @@ Submissions stay unlinked if there is **no bracket** for their content type—cr
 
 ## Legacy static site
 
-`legacy-static/` — old HTML/JS prototype. The app lives under `app/`.
+`legacy-static/` — old HTML prototype. The app lives under `app/`.
 
 ---
 
@@ -279,7 +178,8 @@ Submissions stay unlinked if there is **no bracket** for their content type—cr
 
 | Document | Contents |
 |----------|----------|
-| **[`docs/PRD.md`](docs/PRD.md)** | Full PRD v1.3 — background, scope, §8 features, columns A–H, NFR, **§14 implementation status** |
-| **[`docs/GOOGLE-SHEETS.md`](docs/GOOGLE-SHEETS.md)** | Sheet sync setup, column mapping, dedupe, col E batch mapping, troubleshooting |
-
-The Word source may be `onemore_challenge_web_prd_v1.3.docx`. Repo markdown may diverge where implementation choices are documented (e.g. batch from col E — see PRD §7 notes in `docs/PRD.md`).
+| **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)** | **Current** — routes, schema, gaps vs PRD v2.2 |
+| **[`docs/README.md`](docs/README.md)** | Doc folder index |
+| **[`docs/STAKEHOLDER-DECISION-PRD-V2.2.md`](docs/STAKEHOLDER-DECISION-PRD-V2.2.md)** | Option A record |
+| **[`docs/PRD.md`](docs/PRD.md)** | Historical **v1.3** PRD (judge + Sheet) |
+| **[`docs/GOOGLE-SHEETS.md`](docs/GOOGLE-SHEETS.md)** | **Deprecated** — v1.3 Sheet sync only |

@@ -1,8 +1,25 @@
-import { Role } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
+
+export type AppRole = "admin" | "participant" | "fallback_voter" | "internal_team";
+
+function toAppRole(r: UserRole): AppRole {
+  switch (r) {
+    case UserRole.ADMIN:
+      return "admin";
+    case UserRole.PARTICIPANT:
+      return "participant";
+    case UserRole.FALLBACK_VOTER:
+      return "fallback_voter";
+    case UserRole.INTERNAL_TEAM:
+      return "internal_team";
+    default:
+      return "participant";
+  }
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET,
@@ -14,35 +31,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email = credentials?.email as string | undefined;
+        const email = (credentials?.email as string | undefined)?.toLowerCase().trim();
         const password = credentials?.password as string | undefined;
         if (!email || !password) return null;
 
-        if (process.env.DATABASE_URL) {
-          try {
-            const user = await prisma.user.findUnique({ where: { email } });
-            if (user && (await bcrypt.compare(password, user.passwordHash))) {
-              return {
-                id: user.id,
-                email: user.email,
-                role: user.role === Role.ADMIN ? ("admin" as const) : ("judge" as const),
-              };
-            }
-          } catch {
-            /* DB down or not migrated yet — fall back to env credentials */
-          }
-        }
-
-        const adminEmail = process.env.ADMIN_EMAIL ?? "admin@onemore.local";
-        const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123";
-        const judgeEmail = process.env.JUDGE_EMAIL ?? "judge@onemore.local";
-        const judgePassword = process.env.JUDGE_PASSWORD ?? "judge123";
-
-        if (email === adminEmail && password === adminPassword) {
-          return { id: "admin", email, role: "admin" as const };
-        }
-        if (email === judgeEmail && password === judgePassword) {
-          return { id: "judge", email, role: "judge" as const };
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (user && (await bcrypt.compare(password, user.passwordHash))) {
+          return {
+            id: user.id,
+            email: user.email,
+            role: toAppRole(user.role),
+          };
         }
         return null;
       },
@@ -59,7 +58,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session({ session, token }) {
       if (session.user) {
         const role = token.role;
-        session.user.role = role === "admin" || role === "judge" ? role : undefined;
+        if (role === "admin" || role === "participant" || role === "fallback_voter" || role === "internal_team") {
+          session.user.role = role;
+        }
         if (token.sub) session.user.id = token.sub;
       }
       return session;

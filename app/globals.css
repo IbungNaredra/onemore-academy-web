@@ -189,6 +189,20 @@ body > * {
     0 8px 28px rgba(124, 58, 237, 0.2);
 }
 
+button.nav-link {
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+.nav-link--pending {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
 main {
   max-width: 920px;
   margin: 0 auto;
@@ -201,6 +215,11 @@ main {
 }
 
 .panel.section-active {
+  display: block;
+}
+
+/* Standalone pages use <main className="panel"> — must be visible (tabbed sections use .panel inside a page). */
+main.panel {
   display: block;
 }
 
@@ -780,7 +799,118 @@ main {
   text-align: center;
 }
 
-/* Login + auth shell */
+/* Auth page (/auth) */
+.auth-page {
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.auth-card {
+  background: var(--bg-card-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.35rem 1.65rem;
+  box-shadow: var(--shadow-card);
+}
+
+.auth-header {
+  margin-bottom: 1.25rem;
+}
+
+.auth-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.auth-lead {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.auth-segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 1.25rem;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.auth-segment__btn {
+  padding: 0.7rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.auth-segment__btn + .auth-segment__btn {
+  border-left: 1px solid rgba(167, 139, 250, 0.25);
+}
+
+.auth-segment__btn:hover {
+  color: var(--text);
+  background: rgba(124, 58, 237, 0.12);
+}
+
+.auth-segment__btn[aria-selected="true"] {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.55), rgba(217, 70, 239, 0.4));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.auth-message {
+  margin: 0 0 1rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-form .form-field {
+  margin: 0;
+}
+
+.auth-form .form-field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: var(--text-muted);
+}
+
+.auth-form .admin-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 0.35rem;
+  justify-content: center;
+}
+
+/* Login + auth shell (legacy class names) */
 .login-main {
   max-width: 420px;
   margin: 0 auto;
@@ -820,15 +950,161 @@ main {
   color: var(--text-muted);
 }
 
-.form-field input {
+.form-field input,
+.form-field select {
   width: 100%;
-  padding: 0.55rem 0.65rem;
+  min-height: 2.75rem;
+  padding: 0.6rem 0.75rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.25);
   color: var(--text);
   font-family: var(--font);
   font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.form-field select {
+  padding-right: 2.35rem;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23949bb0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+.form-field select:focus,
+.form-field input:focus {
+  outline: none;
+  border-color: rgba(167, 139, 250, 0.45);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.18);
+}
+
+.form-field select option {
+  background: var(--bg-card-solid);
+  color: var(--text);
+}
+
+/* -------------------------------------------------------------------------
+   Admin / standalone `.admin-input` — same visual language as `.form-field`
+   Use for table toolbars, batch cards, and any `select`/`input` outside `.form-field`.
+   ------------------------------------------------------------------------- */
+input.admin-input,
+select.admin-input,
+textarea.admin-input {
+  min-height: 2.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  box-sizing: border-box;
+}
+
+input.admin-input,
+textarea.admin-input {
+  width: 100%;
+  max-width: 100%;
+}
+
+select.admin-input {
+  min-width: 0;
+  padding-right: 2.35rem;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23949bb0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+textarea.admin-input {
+  min-height: 5rem;
+  width: 100%;
+  resize: vertical;
+}
+
+input.admin-input:focus,
+select.admin-input:focus,
+textarea.admin-input:focus {
+  outline: none;
+  border-color: rgba(167, 139, 250, 0.45);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.18);
+}
+
+select.admin-input option {
+  background: var(--bg-card-solid);
+  color: var(--text);
+}
+
+/* Inline field + button rows (admin tables, batch toolbar) */
+.admin-table-form,
+.admin-toolbar-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-table-form .admin-input {
+  flex: 1 1 10rem;
+  width: auto;
+  min-width: 7rem;
+}
+
+.admin-table td .admin-table-form select.admin-input {
+  min-width: 9rem;
+}
+
+.admin-toolbar-form .admin-input {
+  width: auto;
+  min-width: 10rem;
+  flex: 0 1 auto;
+}
+
+/* Primary compact action next to inputs — same height as controls */
+.admin-table-btn {
+  flex-shrink: 0;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.admin-table-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: rgba(45, 212, 191, 0.35);
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.admin-table-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-batch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .form-error {
@@ -881,27 +1157,6 @@ main {
 /* Admin */
 .admin-wide {
   max-width: 920px;
-}
-
-.admin-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
-}
-
-.admin-nav a {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--cyan);
-  text-decoration: none;
-  padding: 0.35rem 0.65rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-}
-
-.admin-nav a:hover {
-  border-color: rgba(45, 212, 191, 0.4);
 }
 
 .admin-lead {
@@ -992,16 +1247,10 @@ main {
   gap: 0.35rem;
 }
 
-.admin-inline-form input[type="password"] {
+.admin-inline-form input.admin-input {
   flex: 1;
   min-width: 120px;
-  padding: 0.35rem 0.5rem;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.25);
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 0.8rem;
+  width: auto;
 }
 
 .admin-batch-card {

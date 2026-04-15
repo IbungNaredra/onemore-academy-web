@@ -1,36 +1,26 @@
 import Link from "next/link";
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
-import { AdminNav } from "@/components/admin-nav";
-import { SignOutButton } from "@/components/sign-out-button";
+import { requireAdmin } from "@/lib/guards";
 
-export default async function AdminPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/login?callbackUrl=/admin");
-  if (session.user.role !== "admin") redirect("/judge");
+export default async function AdminHomePage() {
+  await requireAdmin();
 
   return (
-    <main className="panel-page admin-wide">
-      <AdminNav />
-      <h2>Admin overview</h2>
-      <p className="admin-lead">
-        Signed in as <strong>{session.user.email}</strong>. Use the sections below to manage judges,
-        batches, brackets, and published winners (the public leaderboard reads from the database).
-      </p>
-      <ul className="admin-link-list">
+    <main className="panel">
+      <h2 className="section-h2">Admin</h2>
+      <ul className="terms-list">
         <li>
-          <Link href="/admin/judges">Judge accounts</Link> — create judges and reset passwords.
+          <Link href="/admin/users">Users</Link> — roles, canVote, password reset
         </li>
         <li>
-          <Link href="/admin/submissions">Submissions &amp; Google Sheet sync</Link> — pull rows (cols A–H),
-          flagged col H, disqualify.
+          <Link href="/admin/batch">Batches</Link> — status, auto transitions, voter assignment
         </li>
         <li>
-          <Link href="/admin/batches">Batches &amp; brackets</Link> — lifecycle, brackets, publish winners; open
-          each batch&apos;s <strong>Results</strong> for scores &amp; judge completion.
+          <Link href="/admin/submissions">Submissions</Link> — view, disqualify
+        </li>
+        <li>
+          <Link href="/admin/winners">Winners</Link> — publish to leaderboard
         </li>
       </ul>
-      <SignOutButton />
     </main>
   );
 }

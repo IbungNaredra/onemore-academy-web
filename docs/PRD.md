@@ -2,10 +2,12 @@
 
 **Product Requirements Document** · **v1.3** · April 2026  
 
+> **Repository status:** The **current product** is **PRD v2.2 Option A** (participant voting, in-app submissions, no Google Sheet sync). This document remains the **v1.3** historical spec (judge + Sheet workflow). See **[`docs/PRD-V2.2-IMPLEMENTATION.md`](PRD-V2.2-IMPLEMENTATION.md)** for what the code implements today and **[§15](#15-supersession-by-prd-v22)** below.
+
 | | |
 |---|---|
 | **Author** | Ibung (Product Ops, Indonesia) |
-| **Status** | Draft — Pending Review |
+| **Status** | Draft — Pending Review *(v1.3 lineage; superseded in codebase by v2.2 — see §15)* |
 | **Program period** | 30 April – 22 May 2026 |
 | **Stakeholders** | Shanghai Ops (Tracy), Indonesia Ops, Product Team |
 | **Last updated** | March 2026 |
@@ -358,4 +360,16 @@ Snapshot vs **PRD v1.3** for the **`onemore-academy-leaderboard`** codebase. Det
 
 ---
 
-*End of PRD (v1.3). Section 14 and [`GOOGLE-SHEETS.md`](GOOGLE-SHEETS.md) are maintained for engineering tracking and are not part of the original Word document.*
+---
+
+## 15. Supersession by PRD v2.2
+
+The **`onemore-academy-web`** codebase has **migrated** to **PRD v2.2** (`onemore_challenge_prd_v2.2.docx`): participant registration, `OPEN` / `VOTING` / `CONCLUDED` batches, group voting with 1–5 ratings, normalized scores, and **no** Google Sheets integration.
+
+- **Live implementation checklist:** [`docs/PRD-V2.2-IMPLEMENTATION.md`](PRD-V2.2-IMPLEMENTATION.md)
+- **Stakeholder direction record:** [`docs/STAKEHOLDER-DECISION-PRD-V2.2.md`](STAKEHOLDER-DECISION-PRD-V2.2.md)
+- **§14 above** describes the **retired** v1.3 implementation (judge queue, Sheet sync, brackets). It is **not** updated for v2.2.
+
+---
+
+*End of PRD (v1.3). Section 14 and [`GOOGLE-SHEETS.md`](GOOGLE-SHEETS.md) described the legacy v1.3 product; see §15 for the current stack.*
