@@ -124,6 +124,10 @@ model ContentGroup {
   layer           Int
   validityStatus  GroupValidity  @default(PENDING)
   completionRate  Float?
+  /// Peer Layer 1 roster size at end of peer voting (before incomplete peer rows are pruned). Used for 50% rule & Recalculate.
+  peerLayer1TotalAtClose     Int?
+  /// How many of those peer assignments had completed voting before prune.
+  peerLayer1CompletedAtClose Int?
   createdAt       DateTime       @default(now())
 
   submissions  GroupSubmission[]

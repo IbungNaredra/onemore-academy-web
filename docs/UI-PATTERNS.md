@@ -91,7 +91,7 @@ Admin and submit flows use this pattern so users see success or error text witho
 
 ### Admin — UNDER_REVIEWED (`/admin/under-reviewed`)
 
-- Lists **`UNDER_REVIEWED`** groups (batch **`INTERNAL_VOTING`** only), **Recalculate** for **`INTERNAL_VOTING`** / **`CONCLUDED`** batches, and **assign** internal team / fallback voters via a **searchable multi-select** ([`components/layer2-voter-assign-form.tsx`](../components/layer2-voter-assign-form.tsx)); server actions: [`app/actions/admin.ts`](../app/actions/admin.ts) `adminAssignLayer2Voters`, `adminReevaluateUnderReviewed`. **50% completion** uses assignments **after** peer no-shows are pruned at end of Layer 1 ([`pruneIncompletePeerLayer1Assignments`](../lib/batch-jobs.ts)). Full behavior: **[`docs/PRD-V2.2-IMPLEMENTATION.md`](PRD-V2.2-IMPLEMENTATION.md#layer-2--under-reviewed-prd-64)**.
+- Lists **`UNDER_REVIEWED`** groups (batch **`INTERNAL_VOTING`** or **`CONCLUDED`**), **Recalculate** for those batches, and **assign** internal team / fallback voters via a **searchable multi-select** ([`components/layer2-voter-assign-form.tsx`](../components/layer2-voter-assign-form.tsx)); server actions: [`app/actions/admin.ts`](../app/actions/admin.ts) `adminAssignLayer2Voters`, `adminReevaluateUnderReviewed`. **50% completion** uses the **full peer roster** at end of peer voting **before** incomplete no-shows are removed ([`flagUnderReviewedGroups`](../lib/batch-jobs.ts) snapshot). Full behavior: **[`docs/PRD-V2.2-IMPLEMENTATION.md`](PRD-V2.2-IMPLEMENTATION.md#layer-2--under-reviewed-prd-64)**.
 
 ---
 

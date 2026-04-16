@@ -11,7 +11,6 @@ import {
   UserRole,
   SubmissionStatus,
   GroupValidity,
-  GroupVoterAssignmentSource,
 } from "@prisma/client";
 import { recomputeCanVote } from "@/lib/eligibility";
 import { parseShanghaiDatetimeLocalToUtc } from "@/lib/datetime-shanghai";
@@ -40,9 +39,11 @@ export async function adminSetBatchStatus(batchId: string, status: BatchStatus) 
     (status === BatchStatus.CONCLUDED && prev.status === BatchStatus.VOTING);
   if (shouldFlagUnderReviewed) {
     if (prev.status === BatchStatus.VOTING) {
+      await flagUnderReviewedGroups(batchId, { capturePeerSnapshot: true });
       await pruneIncompletePeerLayer1Assignments(batchId);
+    } else {
+      await flagUnderReviewedGroups(batchId);
     }
-    await flagUnderReviewedGroups(batchId);
   }
   revalidatePath("/admin/batch");
   revalidatePath("/admin/under-reviewed");
@@ -300,9 +301,9 @@ export async function adminAssignLayer2Voters(groupId: string, formData: FormDat
     await prisma.groupVoterAssignment.upsert({
       where: { groupId_userId: { groupId, userId: u.id } },
       create: {
-        groupId,
-        userId: u.id,
-        source: GroupVoterAssignmentSource.LAYER2_ADMIN,
+        group: { connect: { id: groupId } },
+        user: { connect: { id: u.id } },
+        source: "LAYER2_ADMIN",
       },
       update: {},
     });

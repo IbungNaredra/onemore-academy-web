@@ -161,10 +161,38 @@ async function main() {
     }
   }
 
-  /** Internal team test cohort: 20 accounts (leaderboard Top 10, finalist, L2). Override password with `TEST_INTERNAL_TEAM_PASSWORD`. */
+  /** Participants with no submission (voters only on Batch 1). Same password as load-test UGC cohort. */
+  if (b1) {
+    for (let i = 1; i <= 5; i++) {
+      const email = `test.nosub.p${String(i).padStart(2, "0")}@garena.com`;
+      const user = await prisma.user.upsert({
+        where: { email },
+        update: {
+          passwordHash: testHash,
+          name: `Test No-Submit ${i}`,
+          division: "Others",
+          role: UserRole.PARTICIPANT,
+        },
+        create: {
+          email,
+          passwordHash: testHash,
+          name: `Test No-Submit ${i}`,
+          division: "Others",
+          role: UserRole.PARTICIPANT,
+        },
+      });
+      await prisma.batchVoterEligibility.upsert({
+        where: { batchId_userId: { batchId: b1.id, userId: user.id } },
+        create: { batchId: b1.id, userId: user.id, canVote: true, adminOverride: false },
+        update: { canVote: true },
+      });
+    }
+  }
+
+  /** Internal team: 10 accounts (Layer 2 / finalist / Top 10). Override password with `TEST_INTERNAL_TEAM_PASSWORD`. */
   const internalTeamPassword = process.env.TEST_INTERNAL_TEAM_PASSWORD ?? "12345678";
   const internalTeamHash = await bcrypt.hash(internalTeamPassword, 10);
-  for (let i = 1; i <= 20; i++) {
+  for (let i = 1; i <= 10; i++) {
     const email = `internal.team.it${String(i).padStart(2, "0")}@garena.com`;
     await prisma.user.upsert({
       where: { email },
@@ -191,9 +219,12 @@ async function main() {
       testParticipantPassword,
       ") — Batch 1: 10× MINI_GAMES, 10× REAL_LIFE_PROMPT",
     );
+    console.log(
+      "No-UGC voters: test.nosub.p01@garena.com … test.nosub.p05@garena.com (same password) — can vote on Batch 1, no submission",
+    );
   }
   console.log(
-    "Internal team test: internal.team.it01@garena.com … internal.team.it20@garena.com (password:",
+    "Internal team: internal.team.it01@garena.com … internal.team.it10@garena.com (password:",
     internalTeamPassword,
     ")",
   );

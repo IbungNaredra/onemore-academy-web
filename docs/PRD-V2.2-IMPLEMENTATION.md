@@ -107,10 +107,10 @@ Implementation: [`lib/scoring.ts`](../lib/scoring.ts) (`refreshNormalizedScoresF
 
 ### Detection (50% rule)
 
-- When peer voting ends (`VOTING` → **`INTERNAL_VOTING`**, or **`VOTING` → `CONCLUDED`**), [`pruneIncompletePeerLayer1Assignments`](../lib/batch-jobs.ts) runs **first**: it **deletes** incomplete **`GroupVoterAssignment`** rows whose **`source`** is **`PEER_LAYER1`** (peer roster from [`assignGroupsAndVoters`](../lib/voting-assign.ts)). Layer 1 no-shows are **removed from the denominator**; voters who submitted keep their rows. Admin-added Layer 2 supplements use **`source = LAYER2_ADMIN`** ([`adminAssignLayer2Voters`](../app/actions/admin.ts)) and are **never** pruned here.
-- Then [`flagUnderReviewedGroups`](../lib/batch-jobs.ts) runs — when **cron** transitions `VOTING → INTERNAL_VOTING`, when **admin** sets status to **`INTERNAL_VOTING`** from **`VOTING`**, or when **admin** jumps `VOTING → CONCLUDED` (same flagging for parity) ([`adminSetBatchStatus`](../app/actions/admin.ts)).
-- Per Layer 1 group: **completion rate** = voters who completed the group ÷ **remaining** assignments (after peer prune). **`≥ 50%`** → `VALID`; **`< 50%`** → **`UNDER_REVIEWED`**.
-- Admin can **re-run** the completion calculation (no second prune) for any **`INTERNAL_VOTING`** or **`CONCLUDED`** batch from [`/admin/under-reviewed`](../app/admin/under-reviewed/page.tsx) (**Recalculate**).
+- When peer voting ends (`VOTING` → **`INTERNAL_VOTING`**, or **`VOTING` → `CONCLUDED`**), [`flagUnderReviewedGroups`](../lib/batch-jobs.ts) runs **first** with **`capturePeerSnapshot: true`** (while the full peer roster still exists): per group, among **`GroupVoterAssignment`** rows with **`source = PEER_LAYER1`**, **completion rate** = completed ÷ total peer assignments. **`≥ 50%`** → `VALID`; **`< 50%`** → **`UNDER_REVIEWED`**. Counts are stored on **`ContentGroup`** as **`peerLayer1TotalAtClose`** / **`peerLayer1CompletedAtClose`** for later **Recalculate**.
+- Then [`pruneIncompletePeerLayer1Assignments`](../lib/batch-jobs.ts) **deletes** incomplete **`PEER_LAYER1`** rows (no-shows). Admin-added Layer 2 supplements use **`source = LAYER2_ADMIN`** ([`adminAssignLayer2Voters`](../app/actions/admin.ts)) and are **never** pruned here.
+- Same order when **cron** transitions `VOTING → INTERNAL_VOTING`, when **admin** sets **`INTERNAL_VOTING`** from **`VOTING`**, or **`VOTING` → `CONCLUDED`** ([`adminSetBatchStatus`](../app/actions/admin.ts)).
+- Admin can **re-run** the completion calculation (no prune) for any **`INTERNAL_VOTING`** or **`CONCLUDED`** batch from [`/admin/under-reviewed`](../app/admin/under-reviewed/page.tsx) (**Recalculate**) — uses stored peer snapshot when present.
 
 ### Layer 2 “open” vs batch ending
 
@@ -119,7 +119,7 @@ Implementation: [`lib/scoring.ts`](../lib/scoring.ts) (`refreshNormalizedScoresF
 
 ### Admin compilation and assignment
 
-- **[`/admin/under-reviewed`](../app/admin/under-reviewed/page.tsx)** lists **`UNDER_REVIEWED`** groups while the batch is **`INTERNAL_VOTING`**, with completion rate and **suggested extra voters** to reach 50% ([`additionalVotersToReachHalf`](../lib/under-reviewed-metrics.ts)).
+- **[`/admin/under-reviewed`](../app/admin/under-reviewed/page.tsx)** lists **`UNDER_REVIEWED`** groups while the batch is **`INTERNAL_VOTING`**, with completion rate and **suggested assignees** to reach half of the **original peer roster** ([`additionalAssigneesToReachHalfOfPeerRoster`](../lib/under-reviewed-metrics.ts)); optional note uses [`additionalAssigneesIfRosterGrows`](../lib/under-reviewed-metrics.ts) if the roster grows with each add.
 - Admin assigns **`internal_team`** and **`fallback_voter`** users via **`adminAssignLayer2Voters`** — adds **`GroupVoterAssignment`** rows on the **same** `ContentGroup` (no new groups). Assignment is allowed while the batch is **`INTERNAL_VOTING`** and **`winnersPublishedAt`** is still **null** ([`isLayer2AdminAssignmentAllowed`](../lib/layer2-voting.ts)); it does **not** require the optional **`layer2EndsAt`** window to still be open (so admins can fix roster after the cap). **Submitting Layer 2 votes** still requires [`isLayer2VotingOpen`](../lib/layer2-voting.ts) (including `layer2EndsAt` when set).
 
 ### Vote queue behavior

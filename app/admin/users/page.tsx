@@ -15,23 +15,23 @@ export default async function AdminUsersPage() {
     <main className="panel">
       <h2 className="section-h2">Users</h2>
       <div className="card" style={{ overflowX: "auto" }}>
-        <table className="admin-table">
+        <table className="admin-table admin-users-table">
           <thead>
             <tr>
-              <th>Email</th>
-              <th>Name</th>
-              <th>Role</th>
-              <th>New password</th>
+              <th scope="col">Email</th>
+              <th scope="col">Name</th>
+              <th scope="col">Role</th>
+              <th scope="col">New password</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td>{u.email}</td>
-                <td>{u.name}</td>
+                <td className="admin-users-table__email">{u.email}</td>
+                <td className="admin-users-table__name">{u.name}</td>
                 <td>
                   <form
-                    className="admin-table-form"
+                    className="admin-table-form admin-table-form--row"
                     action={async (fd: FormData) => {
                       "use server";
                       const role = String(fd.get("role")) as UserRole;
@@ -45,21 +45,21 @@ export default async function AdminUsersPage() {
                         </option>
                       ))}
                     </select>
-                    <FormSubmitButton type="submit" className="admin-table-btn" pendingLabel="Saving…">
-                      Save role
+                    <FormSubmitButton type="submit" className="admin-table-btn admin-users-table__btn" pendingLabel="…">
+                      Save
                     </FormSubmitButton>
                   </form>
                 </td>
                 <td>
                   <form
-                    className="admin-table-form"
+                    className="admin-table-form admin-table-form--row"
                     action={async (fd: FormData) => {
                       "use server";
                       await adminResetPassword(u.id, String(fd.get("pw") ?? ""));
                     }}
                   >
                     <input name="pw" type="password" className="admin-input" placeholder="temp password" required />
-                    <FormSubmitButton type="submit" className="admin-table-btn" pendingLabel="Updating…">
+                    <FormSubmitButton type="submit" className="admin-table-btn admin-users-table__btn" pendingLabel="…">
                       Set
                     </FormSubmitButton>
                   </form>

@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "db:reset-ugc": "tsx scripts/reset-nonadmin-and-ugc.ts",
     "minify:google-key": "node scripts/minify-service-account-json.mjs"
   },
   "dependencies": {

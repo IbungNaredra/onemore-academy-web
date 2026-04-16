@@ -81,8 +81,9 @@ Seed creates:
 - **Demo participant** (`participant.demo@garena.com` / `participant123`)
 - **Three batches** (`batch-1` … `batch-3`) with PRD-style May 2026 dates — each is explicitly set to **`OPEN`** (schema default for new rows is **`CLOSED`**)
 - One **demo submission** on Batch 1 for the demo participant
-- **Load-test cohort:** 20 participants `test.ugc.p01@garena.com` … `test.ugc.p20@garena.com` (password `test123456` or `TEST_PARTICIPANT_PASSWORD`) with one UGC each on Batch 1
-- **Internal team test cohort:** 20 users `internal.team.it01@garena.com` … `internal.team.it20@garena.com` (password `12345678` or `TEST_INTERNAL_TEAM_PASSWORD`) for Layer 2 / finalist / Top 10 testing
+- **Load-test UGC cohort:** 20 participants `test.ugc.p01@garena.com` … `test.ugc.p20@garena.com` (password `test123456` or `TEST_PARTICIPANT_PASSWORD`) — **10× Mini Games + 10× Real Life + Prompt** on Batch 1 (one UGC each)
+- **No-UGC voters:** 5 participants `test.nosub.p01@garena.com` … `test.nosub.p05@garena.com` (same password) — eligible to vote on Batch 1, **no** submission
+- **Internal team:** 10 users `internal.team.it01@garena.com` … `internal.team.it10@garena.com` (password `12345678` or `TEST_INTERNAL_TEAM_PASSWORD`) for Layer 2 / finalist / Top 10 testing
 
 ### 4. Run the app
 
@@ -107,6 +108,7 @@ Open [http://localhost:3000](http://localhost:3000) — `/` redirects to `/info`
 | `npm run db:migrate` | Migrations (dev) |
 | `npm run db:studio` | Prisma Studio |
 | `npm run db:seed` | Run `prisma/seed.ts` |
+| `npm run db:reset-ugc` | **Destructive:** delete all UGC (submissions, groups, ratings, winners, eligibility) and all users except `ADMIN` — see `scripts/reset-nonadmin-and-ugc.ts` |
 
 ---
 

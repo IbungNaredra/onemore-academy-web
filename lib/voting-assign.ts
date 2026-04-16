@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { bucketIndices } from "@/lib/group-algorithm";
-import { BatchStatus, ContentCategory, GroupVoterAssignmentSource, SubmissionStatus, UserRole } from "@prisma/client";
+import { BatchStatus, ContentCategory, SubmissionStatus, UserRole } from "@prisma/client";
 import { recomputeAllEligibilityForBatch } from "@/lib/eligibility";
 
 /** Build Layer 1 peer groups + voter assignments for one category (OPEN or VOTING). */
@@ -66,9 +66,9 @@ export async function assignGroupsAndVoters(batchId: string, category: ContentCa
       if (submitterIds.has(e.userId)) continue;
       await prisma.groupVoterAssignment.create({
         data: {
-          groupId: group.id,
-          userId: e.userId,
-          source: GroupVoterAssignmentSource.PEER_LAYER1,
+          group: { connect: { id: group.id } },
+          user: { connect: { id: e.userId } },
+          // Omit `source`: schema default PEER_LAYER1 (avoids bundler enum/value issues).
         },
       });
     }

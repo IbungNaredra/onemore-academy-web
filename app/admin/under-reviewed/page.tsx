@@ -8,7 +8,10 @@ import {
 } from "@/app/actions/admin";
 import { FormSubmitButton } from "@/components/form-submit-button";
 import { Layer2VoterAssignForm } from "@/components/layer2-voter-assign-form";
-import { additionalVotersToReachHalf } from "@/lib/under-reviewed-metrics";
+import {
+  additionalAssigneesIfRosterGrows,
+  additionalAssigneesToReachHalfOfPeerRoster,
+} from "@/lib/under-reviewed-metrics";
 import { BatchStatus, UserRole, ContentCategory, GroupValidity } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +32,9 @@ export default async function AdminUnderReviewedPage() {
       where: {
         layer: 1,
         validityStatus: GroupValidity.UNDER_REVIEWED,
-        batch: { status: BatchStatus.INTERNAL_VOTING },
+        // Match batches eligible for "Recalculate": INTERNAL_VOTING (Layer 2 open) or CONCLUDED
+        // (stranded UNDER_REVIEWED groups still visible; assign requires INTERNAL_VOTING — see card note).
+        batch: { status: { in: [BatchStatus.INTERNAL_VOTING, BatchStatus.CONCLUDED] } },
       },
       include: {
         batch: true,
@@ -56,10 +61,12 @@ export default async function AdminUnderReviewedPage() {
       <h2 className="section-h2">Layer 2 — UNDER_REVIEWED</h2>
       <p className="hero-lead">
         When peer voting ends, the batch moves to <strong>INTERNAL_VOTING</strong> (auto at{" "}
-        <code>concludedAt</code> or manual). Groups below 50% completion are flagged <strong>UNDER_REVIEWED</strong>.
-        Assign internal team and/or fallback voters; they vote in the same UI (Layer 2 closes when winners are published
-        or <code>layer2EndsAt</code> passes). Set the batch to <strong>CONCLUDED</strong> when internal review is done and
-        you are ready to pick winners for the public leaderboard.
+        <code>concludedAt</code> or manual). Groups below 50% peer completion (after no-shows are pruned) are flagged{" "}
+        <strong>UNDER_REVIEWED</strong> — <em>only those groups appear below</em>; other groups in the same batch may
+        still be <strong>VALID</strong> and are not listed. Assign internal team and/or fallback voters; they vote in the
+        same UI (Layer 2 closes when winners are published or <code>layer2EndsAt</code> passes). Set the batch to{" "}
+        <strong>CONCLUDED</strong> when internal review is done and you are ready to pick winners for the public
+        leaderboard.
       </p>
 
       <section className="card" style={{ marginBottom: "1.25rem" }}>
@@ -91,19 +98,55 @@ export default async function AdminUnderReviewedPage() {
         </div>
       ) : (
         groups.map((g) => {
-          const done = g.assignments.filter((a) => a.completed).length;
-          const total = g.assignments.length;
+          const assignDone = g.assignments.filter((a) => a.completed).length;
+          const assignTotal = g.assignments.length;
+          // Peer-phase 50% rule uses snapshot at end of peer voting (before no-show prune); show that when stored.
+          const peerDone = g.peerLayer1CompletedAtClose ?? 0;
+          const peerTotal = g.peerLayer1TotalAtClose;
+          const showPeerSnapshot = peerTotal != null && peerTotal > 0;
+          const done = showPeerSnapshot ? peerDone : assignDone;
+          const total = showPeerSnapshot ? peerTotal : assignTotal;
           const rate = total === 0 ? 0 : done / total;
-          const need = additionalVotersToReachHalf(done, total);
+          // Suggested adds: use current roster if any; else peer snapshot (roster was fully pruned).
+          const needBasisDone = assignTotal > 0 ? assignDone : done;
+          const needBasisTotal = assignTotal > 0 ? assignTotal : total;
+          const needPeerHalf = additionalAssigneesToReachHalfOfPeerRoster(needBasisDone, needBasisTotal);
+          const needIfRosterGrows = additionalAssigneesIfRosterGrows(needBasisDone, needBasisTotal);
+          const batchConcluded = g.batch.status === BatchStatus.CONCLUDED;
           return (
             <section key={g.id} className="card" style={{ marginBottom: "1.25rem" }}>
               <h3 className="card-title">
                 {g.batch.label} · {catLabel(g.category)}
               </h3>
+              {batchConcluded && (
+                <p className="terms-note" style={{ marginBottom: "0.5rem" }}>
+                  Batch status is <strong>CONCLUDED</strong> — use <strong>Recalculate</strong> above if needed. To assign
+                  Layer 2 voters, set the batch back to <strong>INTERNAL_VOTING</strong> (assign actions are blocked while
+                  CONCLUDED).
+                </p>
+              )}
               <p className="terms-note">
-                <code className="admin-mono">{g.id}</code> · submissions in group: {g.submissions.length} · completion:{" "}
-                {(rate * 100).toFixed(0)}% ({done}/{total}) · suggested extra voters to reach 50%: <strong>{need}</strong>
+                <code className="admin-mono">{g.id}</code> · submissions in group: {g.submissions.length} · peer completion
+                at close: {(rate * 100).toFixed(0)}% ({done}/{total}){showPeerSnapshot ? " — counts peer roster at end of peer voting" : ""}{" "}
+                · suggested assignees (reach ⌈peer roster/2⌉ completed votes vs original peer size N):{" "}
+                <strong>{needPeerHalf}</strong>
+                {needIfRosterGrows !== needPeerHalf && (
+                  <>
+                    {" "}
+                    <span className="terms-note">
+                      (if each new assignee permanently grows the roster and all complete, a different bound is{" "}
+                      <strong>{needIfRosterGrows}</strong> — usually not the planning number.)
+                    </span>
+                  </>
+                )}
               </p>
+              {assignTotal === 0 && (
+                <p className="terms-note" style={{ marginTop: "0.5rem" }}>
+                  <strong>0/0</strong> means there are no voter roster rows left on this group (incomplete peer voters
+                  were removed at internal voting). Assign internal team / fallback voters below to build the Layer 2
+                  roster — completion will then reflect those assignments.
+                </p>
+              )}
               <Layer2VoterAssignForm
                 groupId={g.id}
                 assignAction={adminAssignLayer2Voters.bind(null, g.id)}

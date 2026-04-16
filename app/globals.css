@@ -1243,6 +1243,68 @@ button.form-submit-btn--pending,
   padding: 0.4rem 0.5rem;
 }
 
+/* Admin /users — single-line row actions, aligned columns */
+.admin-users-table {
+  table-layout: fixed;
+}
+
+.admin-users-table th:nth-child(1),
+.admin-users-table td:nth-child(1) {
+  width: 30%;
+}
+
+.admin-users-table th:nth-child(2),
+.admin-users-table td:nth-child(2) {
+  width: 16%;
+}
+
+.admin-users-table th:nth-child(3),
+.admin-users-table td:nth-child(3) {
+  width: 24%;
+}
+
+.admin-users-table th:nth-child(4),
+.admin-users-table td:nth-child(4) {
+  width: 30%;
+}
+
+.admin-users-table__email {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.admin-users-table__name {
+  word-break: break-word;
+}
+
+.admin-table-form--row {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.admin-users-table td .admin-table-form--row .admin-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.admin-users-table td:nth-child(3) .admin-table-form--row select.admin-input {
+  flex: 1 1 auto;
+  min-width: 7.5rem;
+  max-width: 100%;
+}
+
+.admin-users-table td:nth-child(4) .admin-table-form--row input.admin-input {
+  min-width: 6.5rem;
+}
+
+.admin-users-table__btn.admin-table-btn {
+  min-height: 2.35rem;
+  padding: 0.38rem 0.8rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
 .admin-empty {
   padding: 0.75rem;
   color: var(--text-soft);
