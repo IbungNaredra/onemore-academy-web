@@ -36,8 +36,9 @@ export default async function SubmitPage() {
 
       {!submissionBatch ? (
         <p className="terms-note">
-          No batch is in its submission window right now. Submissions are accepted when a batch is OPEN and the current
-          time is between that batch’s open time and voting start (see admin batch schedule).
+          No batch is accepting submissions right now. Batches in the <strong>CLOSED</strong> state are not open yet;
+          submissions run only when a batch is <strong>OPEN</strong> and the current time is between that batch’s open
+          time and voting start (see Challenge info / admin schedule).
         </p>
       ) : (
         <form action={createSubmission} className="card" style={{ maxWidth: 520 }}>

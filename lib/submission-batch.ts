@@ -3,7 +3,7 @@ import { BatchStatus } from "@prisma/client";
 
 /**
  * UGC is tied to the single batch that is accepting submissions **now**:
- * `status === OPEN` (admin or cron) and `openAt <= now < votingAt` (admin-configured window).
+ * `status === OPEN` (not `CLOSED` or later) and `openAt <= now < votingAt` (admin-configured window).
  * If several rows match (misconfiguration), the lowest `batchNumber` wins.
  */
 export async function resolveSubmissionBatch(now: Date = new Date()) {

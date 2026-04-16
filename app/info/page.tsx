@@ -56,7 +56,8 @@ export default async function InfoPage() {
                 <strong>Categories</strong> — Mini Games and Real Life + Prompt are separate.
               </li>
               <li>
-                <strong>Batches</strong> — OPEN → VOTING → CONCLUDED; auto transitions optional (cron).
+                <strong>Batches</strong> — CLOSED (not open yet) → OPEN → VOTING → INTERNAL_VOTING → CONCLUDED; cron can
+                move CLOSED→OPEN at open time, then OPEN→VOTING, VOTING→INTERNAL_VOTING at peer-voting end.
               </li>
               <li>
                 <strong>Scoring</strong> — 1–5 per submission in your assigned groups; normalized for fairness.

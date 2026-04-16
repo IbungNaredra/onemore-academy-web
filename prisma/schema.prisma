@@ -22,8 +22,13 @@ enum ContentCategory {
 }
 
 enum BatchStatus {
+  /// Competition not open yet (before submissions; cron → OPEN at `openAt` when autoTransition is on).
+  CLOSED
   OPEN
   VOTING
+  /// Peer voting ended; UNDER_REVIEWED flagging, assign internal_team / fallback, Layer 2 voting.
+  INTERNAL_VOTING
+  /// Batch wrap-up; pick winners and publish to public leaderboard.
   CONCLUDED
 }
 
@@ -65,7 +70,7 @@ model ProgramBatch {
   concludedAt          DateTime
   leaderboardPublishAt DateTime?
   autoTransition       Boolean     @default(true)
-  status               BatchStatus @default(OPEN)
+  status               BatchStatus @default(CLOSED)
   voterAssignmentDone  Boolean     @default(false)
   /// Wednesday Layer 2 voting window end (optional cap).
   layer2EndsAt         DateTime?

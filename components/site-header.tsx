@@ -82,6 +82,9 @@ export function SiteHeader() {
               <Link href="/admin/winners" className={navClass(pathname === "/admin/winners")}>
                 Winners
               </Link>
+              <Link href="/admin/under-reviewed" className={navClass(pathname === "/admin/under-reviewed")}>
+                Under-reviewed
+              </Link>
             </>
           )}
           {status === "loading" ? (

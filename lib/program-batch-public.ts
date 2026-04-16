@@ -16,7 +16,20 @@ function uiState(batch: {
   winnersPublishedAt: Date | null;
 }): PublicBatchState {
   if (batch.winnersPublishedAt) return "published";
-  return batch.status.toLowerCase() as PublicBatchState;
+  switch (batch.status) {
+    case BatchStatus.CLOSED:
+      return "closed";
+    case BatchStatus.OPEN:
+      return "open";
+    case BatchStatus.VOTING:
+      return "voting";
+    case BatchStatus.INTERNAL_VOTING:
+      return "internal_voting";
+    case BatchStatus.CONCLUDED:
+      return "concluded";
+    default:
+      return "concluded";
+  }
 }
 
 const categoryLabel: Record<ContentCategory, string> = {
@@ -109,7 +122,12 @@ export async function getScheduleBatches(): Promise<ScheduleBatchDto[]> {
 
 async function mapTop(batchId: string, category: ContentCategory): Promise<FinalistRow[]> {
   const rows = await prisma.submission.findMany({
-    where: { batchId, category, status: SubmissionStatus.ACTIVE },
+    where: {
+      batchId,
+      category,
+      status: SubmissionStatus.ACTIVE,
+      normalizedScore: { not: null },
+    },
     orderBy: [{ normalizedScore: "desc" }, { id: "asc" }],
     take: 10,
     include: { user: true },

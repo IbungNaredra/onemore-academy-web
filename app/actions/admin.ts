@@ -5,10 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { prepareBatchIfEnteringVoting } from "@/lib/voting-assign";
 import { refreshNormalizedScoresForBatchCategory } from "@/lib/scoring";
 import bcrypt from "bcryptjs";
-import { BatchStatus, ContentCategory, UserRole, SubmissionStatus } from "@prisma/client";
+import { BatchStatus, ContentCategory, UserRole, SubmissionStatus, GroupValidity } from "@prisma/client";
 import { recomputeCanVote } from "@/lib/eligibility";
 import { parseShanghaiDatetimeLocalToUtc } from "@/lib/datetime-shanghai";
 import { buildToastUrl } from "@/lib/snackbar-url";
+import { flagUnderReviewedGroups } from "@/lib/batch-jobs";
+import { isLayer2AdminAssignmentAllowed } from "@/lib/layer2-voting";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -26,7 +28,14 @@ export async function adminSetBatchStatus(batchId: string, status: BatchStatus) 
   if (!prev) throw new Error("Batch not found");
   await prisma.programBatch.update({ where: { id: batchId }, data: { status } });
   await prepareBatchIfEnteringVoting(batchId, prev.status, status);
+  const shouldFlagUnderReviewed =
+    (status === BatchStatus.INTERNAL_VOTING && prev.status !== BatchStatus.INTERNAL_VOTING) ||
+    (status === BatchStatus.CONCLUDED && prev.status === BatchStatus.VOTING);
+  if (shouldFlagUnderReviewed) {
+    await flagUnderReviewedGroups(batchId);
+  }
   revalidatePath("/admin/batch");
+  revalidatePath("/admin/under-reviewed");
   revalidatePath("/vote");
   redirect(buildToastUrl("/admin/batch", "success", "Batch status updated."));
 }
@@ -159,6 +168,7 @@ export async function adminPublishWinners(batchId: string, submissionIds: string
   });
   revalidatePath("/leaderboard");
   revalidatePath("/admin/winners");
+  revalidatePath("/vote");
   redirect(buildToastUrl("/admin/winners", "success", "Winners published."));
 }
 
@@ -171,5 +181,86 @@ export async function adminClearPublish(batchId: string) {
   });
   revalidatePath("/leaderboard");
   revalidatePath("/admin/winners");
+  revalidatePath("/admin/under-reviewed");
+  revalidatePath("/vote");
   redirect(buildToastUrl("/admin/winners", "success", "Winners unpublished for this batch."));
+}
+
+/** Re-run 50% / UNDER_REVIEWED flagging for INTERNAL_VOTING or CONCLUDED batches (manual parity with cron). */
+export async function adminReevaluateUnderReviewed(batchId: string) {
+  await requireAdminUser();
+  const batch = await prisma.programBatch.findUnique({ where: { id: batchId } });
+  if (
+    !batch ||
+    (batch.status !== BatchStatus.INTERNAL_VOTING && batch.status !== BatchStatus.CONCLUDED)
+  ) {
+    redirect(buildToastUrl("/admin/under-reviewed", "error", "Batch must be INTERNAL_VOTING or CONCLUDED."));
+  }
+  await flagUnderReviewedGroups(batchId);
+  revalidatePath("/admin/under-reviewed");
+  revalidatePath("/vote");
+  redirect(buildToastUrl("/admin/under-reviewed", "success", "Completion rates recalculated."));
+}
+
+/** Assign internal_team / fallback_voter users as additional Layer 2 voters on an UNDER_REVIEWED group. */
+export async function adminAssignLayer2Voters(groupId: string, formData: FormData) {
+  await requireAdminUser();
+  const group = await prisma.contentGroup.findUnique({
+    where: { id: groupId },
+    include: { batch: true },
+  });
+  if (!group || group.layer !== 1) {
+    redirect(buildToastUrl("/admin/under-reviewed", "error", "Group not found."));
+  }
+  if (group.validityStatus !== GroupValidity.UNDER_REVIEWED) {
+    redirect(buildToastUrl("/admin/under-reviewed", "error", "Group is not UNDER_REVIEWED."));
+  }
+  if (!isLayer2AdminAssignmentAllowed(group.batch)) {
+    if (group.batch.winnersPublishedAt != null) {
+      redirect(
+        buildToastUrl(
+          "/admin/under-reviewed",
+          "error",
+          "Winners are already published for this batch; Layer 2 voter assignment is closed.",
+        ),
+      );
+    }
+    redirect(
+      buildToastUrl(
+        "/admin/under-reviewed",
+        "error",
+        "Batch must be INTERNAL_VOTING (and winners not yet published) to assign Layer 2 voters.",
+      ),
+    );
+  }
+
+  const ids = [...new Set(formData.getAll("assignUserId").map(String))].filter(Boolean);
+  if (ids.length === 0) {
+    redirect(buildToastUrl("/admin/under-reviewed", "error", "Pick at least one user."));
+  }
+
+  const users = await prisma.user.findMany({
+    where: {
+      id: { in: ids },
+      role: { in: [UserRole.INTERNAL_TEAM, UserRole.FALLBACK_VOTER] },
+    },
+    select: { id: true },
+  });
+  if (users.length !== ids.length) {
+    redirect(
+      buildToastUrl("/admin/under-reviewed", "error", "Only internal team or fallback voters can be assigned."),
+    );
+  }
+
+  for (const u of users) {
+    await prisma.groupVoterAssignment.upsert({
+      where: { groupId_userId: { groupId, userId: u.id } },
+      create: { groupId, userId: u.id },
+      update: {},
+    });
+  }
+
+  revalidatePath("/admin/under-reviewed");
+  revalidatePath("/vote");
+  redirect(buildToastUrl("/admin/under-reviewed", "success", "Voters assigned."));
 }

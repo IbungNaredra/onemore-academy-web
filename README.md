@@ -118,10 +118,11 @@ app/
   vote/page.tsx, vote/[groupId]/     # Group voting
   leaderboard/page.tsx               # Winners + internal Top 10
   finalist/page.tsx                  # Internal finalist view
-  admin/                             # Users, batch, submissions, winners
+  admin/                             # Users, batch, submissions, winners, under-reviewed
 lib/
   group-algorithm.ts, voting-assign.ts, eligibility.ts, scoring.ts
-  batch-jobs.ts, url-check.ts, divisions.ts, program-batch-public.ts, snackbar-url.ts
+  batch-jobs.ts, layer2-voting.ts, vote-queue-where.ts, under-reviewed-metrics.ts
+  url-check.ts, divisions.ts, program-batch-public.ts, snackbar-url.ts
 prisma/
   schema.prisma, migrations/, seed.ts
 auth.ts                              # NextAuth (DB users only)
@@ -139,7 +140,7 @@ components/
 
 ## Data model (summary)
 
-See [`prisma/schema.prisma`](prisma/schema.prisma): **User** (roles + division), **ProgramBatch** (`OPEN` / `VOTING` / `CONCLUDED`, transition timestamps), **Submission** (per user + batch, `batchId` + `contentUrl` unique), **ContentGroup** / **GroupSubmission** / **GroupVoterAssignment** / **Rating**, **BatchVoterEligibility**, **PublishedWinner**.
+See [`prisma/schema.prisma`](prisma/schema.prisma): **User** (roles + division), **ProgramBatch** (`CLOSED` / `OPEN` / `VOTING` / `INTERNAL_VOTING` / `CONCLUDED`, transition timestamps; default **`CLOSED`**), **Submission** (per user + batch, `batchId` + `contentUrl` unique), **ContentGroup** / **GroupSubmission** / **GroupVoterAssignment** / **Rating**, **BatchVoterEligibility**, **PublishedWinner**.
 
 ---
 
@@ -152,7 +153,7 @@ See [`prisma/schema.prisma`](prisma/schema.prisma): **User** (roles + division),
 | `/submit` | Submissions (batch OPEN) |
 | `/vote` | Vote queue |
 | `/leaderboard` | Public leaderboard + internal section (role-gated) |
-| `/admin/*` | Admin panel |
+| `/admin/*` | Admin panel (includes **`/admin/under-reviewed`** — Layer 2 UNDER_REVIEWED) |
 
 Full table: [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md).
 
@@ -176,6 +177,8 @@ Full table: [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)
 
 - **Schedule:** Native **`datetime-local`** inputs; times are edited as **Asia/Shanghai** and stored as UTC — see [`lib/datetime-shanghai.ts`](lib/datetime-shanghai.ts) and **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md#admin-batches-tab)**.
 - **Voting groups:** There is no separate “prepare voting” control. On **OPEN → VOTING** (manual status change or cron with `autoTransition`), the app runs group + voter assignment once if needed — **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md#admin-batches-tab)**.
+- **Which batch a submission uses** (OPEN + date window) and **how normalized scores update**: **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md#which-batch-gets-new-submissions-batchid)** · **[`#normalized-scores-when-they-update-vs-what-pages-read`](docs/PRD-V2.2-IMPLEMENTATION.md#normalized-scores-when-they-update-vs-what-pages-read)** · **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md#notes--batch-assignment--normalized-scores)** (short notes).
+- **Layer 2 (UNDER_REVIEWED):** flagging when entering **`INTERNAL_VOTING`** (cron + manual), **`/admin/under-reviewed`**, vote queue rules for **fallback** vs others — **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md#layer-2--under-reviewed-prd-64)**.
 
 ---
 
@@ -195,8 +198,8 @@ Full table: [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)
 
 | Document | Contents |
 |----------|----------|
-| **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)** | **Current** — routes, schema, gaps vs PRD v2.2 |
-| **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md)** | Loading states, snackbars, `FormSubmitButton`, URL toasts, admin batch pickers |
+| **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)** | **Current** — routes, schema, gaps; **submission `batchId`**; **normalized scores**; **Layer 2 / UNDER_REVIEWED** |
+| **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md)** | Loading states, snackbars, `FormSubmitButton`, URL toasts, admin batch pickers; vote queue (L1 vs L2); batch/scoring notes |
 | **[`docs/README.md`](docs/README.md)** | Doc folder index |
 | **[`docs/STAKEHOLDER-DECISION-PRD-V2.2.md`](docs/STAKEHOLDER-DECISION-PRD-V2.2.md)** | Option A record |
 | **[`docs/PRD.md`](docs/PRD.md)** | Historical **v1.3** PRD (judge + Sheet) |

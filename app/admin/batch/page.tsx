@@ -2,6 +2,14 @@ import { requireAdmin } from "@/lib/guards";
 import { prisma } from "@/lib/prisma";
 import { BatchStatus } from "@prisma/client";
 import { adminSetBatchSchedule, adminSetBatchStatus, adminToggleAutoTransition } from "@/app/actions/admin";
+
+const BATCH_STATUS_OPTION_LABEL: Record<BatchStatus, string> = {
+  [BatchStatus.CLOSED]: "CLOSED — competition not open yet",
+  [BatchStatus.OPEN]: "OPEN — submissions open",
+  [BatchStatus.VOTING]: "VOTING — peer voting",
+  [BatchStatus.INTERNAL_VOTING]: "INTERNAL_VOTING — under review & Layer 2",
+  [BatchStatus.CONCLUDED]: "CONCLUDED — pick winners / public leaderboard",
+};
 import { formatUtcAsShanghaiDatetimeLocal } from "@/lib/datetime-shanghai";
 import { FormSubmitButton } from "@/components/form-submit-button";
 
@@ -16,11 +24,13 @@ export default async function AdminBatchPage() {
     <main className="panel">
       <h2 className="section-h2">Batches</h2>
       <p className="hero-lead">
-        Set the <strong>schedule</strong> (Asia/Shanghai) so submissions are accepted while the batch is{" "}
-        <strong>OPEN</strong> and the current time is between <strong>Open</strong> and <strong>Voting start</strong>.
-        When status becomes <strong>VOTING</strong> (cron or manual), groups and voter assignments are created
-        automatically if not already done. Cron: GET <code>/api/cron/batch-transitions</code> with{" "}
-        <code>CRON_SECRET</code>.
+        Set the <strong>schedule</strong> (Asia/Shanghai): submissions while the batch is <strong>OPEN</strong> and now
+        is in [<strong>Open</strong>, <strong>Voting start</strong>). At <strong>Voting start</strong> the batch becomes{" "}
+        <strong>VOTING</strong> (cron or manual) and Layer 1 groups are prepared. At <strong>Peer voting ends</strong> (
+        <code>concludedAt</code>) auto cron moves to <strong>INTERNAL_VOTING</strong> (UNDER_REVIEWED flagging, Layer 2).
+        Move to <strong>CONCLUDED</strong> manually when internal review is done and you are ready to publish winners.
+        Cron: GET <code>/api/cron/batch-transitions</code> with <code>CRON_SECRET</code> (CLOSED→OPEN at{" "}
+        <code>openAt</code>, then OPEN→VOTING, VOTING→INTERNAL_VOTING).
       </p>
 
       {batches.map((b) => (
@@ -29,7 +39,7 @@ export default async function AdminBatchPage() {
             {b.label} — {b.status} {b.voterAssignmentDone ? "· voters assigned" : "· voters not assigned"}
           </h3>
           <p className="terms-note">
-            UTC (audit): OPEN {b.openAt.toISOString()} · VOTING {b.votingAt.toISOString()} · CONCLUDED{" "}
+            UTC (audit): OPEN {b.openAt.toISOString()} · VOTING {b.votingAt.toISOString()} · PEER_VOTING_END{" "}
             {b.concludedAt.toISOString()}
             {b.leaderboardPublishAt ? ` · PUBLISH ${b.leaderboardPublishAt.toISOString()}` : ""}
           </p>
@@ -63,7 +73,7 @@ export default async function AdminBatchPage() {
                 />
               </div>
               <div className="form-field">
-                <label htmlFor={`concluded-${b.id}`}>Concluded</label>
+                <label htmlFor={`concluded-${b.id}`}>Peer voting ends → INTERNAL_VOTING</label>
                 <input
                   id={`concluded-${b.id}`}
                   type="datetime-local"
@@ -102,7 +112,7 @@ export default async function AdminBatchPage() {
               <select name="status" defaultValue={b.status} className="admin-input">
                 {Object.values(BatchStatus).map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {BATCH_STATUS_OPTION_LABEL[s]}
                   </option>
                 ))}
               </select>

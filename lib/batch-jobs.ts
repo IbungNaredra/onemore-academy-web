@@ -9,18 +9,21 @@ export async function runBatchTransitions(now: Date = new Date()) {
   });
   for (const b of batches) {
     let next = b.status;
+    if (b.status === BatchStatus.CLOSED && now >= b.openAt) {
+      next = BatchStatus.OPEN;
+    }
     if (b.status === BatchStatus.OPEN && now >= b.votingAt) {
       next = BatchStatus.VOTING;
     }
     if (b.status === BatchStatus.VOTING && now >= b.concludedAt) {
-      next = BatchStatus.CONCLUDED;
+      next = BatchStatus.INTERNAL_VOTING;
     }
     if (next !== b.status) {
       await prisma.programBatch.update({
         where: { id: b.id },
         data: { status: next },
       });
-      if (next === BatchStatus.CONCLUDED) {
+      if (next === BatchStatus.INTERNAL_VOTING) {
         await flagUnderReviewedGroups(b.id);
       }
       try {

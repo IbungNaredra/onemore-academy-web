@@ -1,11 +1,14 @@
-import { titleCaseState } from "@/lib/challenge-data";
-import type { PublicBatchState, ScheduleBatchDto } from "@/lib/leaderboard-types";
+import { batchStateDisplayName, type PublicBatchState, type ScheduleBatchDto } from "@/lib/leaderboard-types";
 
 function stateClass(s: PublicBatchState): string {
   switch (s) {
+    case "closed":
+      return "state-closed";
     case "open":
       return "state-active";
     case "voting":
+      return "state-evaluating";
+    case "internal_voting":
       return "state-evaluating";
     case "concluded":
       return "state-evaluating";
@@ -35,7 +38,7 @@ export function ScheduleGrid({ batches }: { batches: ScheduleBatchDto[] }) {
           <p>
             <strong>Announcement</strong>: {b.announcementDate ?? "—"}
           </p>
-          <span className={`state-pill ${stateClass(b.state)}`}>{titleCaseState(b.state)}</span>
+          <span className={`state-pill ${stateClass(b.state)}`}>{batchStateDisplayName(b.state)}</span>
         </article>
       ))}
     </div>

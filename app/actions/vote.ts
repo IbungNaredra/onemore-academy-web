@@ -3,7 +3,8 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { refreshNormalizedScoresForBatchCategory } from "@/lib/scoring";
-import { BatchStatus } from "@prisma/client";
+import { isLayer2VotingOpen } from "@/lib/layer2-voting";
+import { BatchStatus, GroupValidity } from "@prisma/client";
 
 export async function submitGroupRatings(groupId: string, scores: Record<string, number>) {
   const session = await auth();
@@ -29,8 +30,19 @@ export async function submitGroupRatings(groupId: string, scores: Record<string,
   if (group.assignments[0]!.completed) {
     return { error: "Already submitted" };
   }
-  if (group.layer === 1 && group.batch.status !== BatchStatus.VOTING) {
-    return { error: "Layer 1 voting is only available while the batch is in VOTING" };
+
+  const isL1Voting = group.layer === 1 && group.batch.status === BatchStatus.VOTING;
+  const isL2UnderReviewed =
+    group.layer === 1 &&
+    group.validityStatus === GroupValidity.UNDER_REVIEWED &&
+    group.batch.status === BatchStatus.INTERNAL_VOTING &&
+    isLayer2VotingOpen(group.batch);
+
+  if (!isL1Voting && !isL2UnderReviewed) {
+    return {
+      error:
+        "Voting is not open for this group (Layer 1 requires batch VOTING; Layer 2 requires UNDER_REVIEWED and an open Layer 2 window).",
+    };
   }
 
   const subIds = group.submissions.map((s) => s.submissionId);

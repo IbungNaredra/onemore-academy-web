@@ -13,6 +13,7 @@ export default function AuthPage() {
   const [mode, setMode] = useState<"signin" | "register">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [name, setName] = useState("");
   const [division, setDivision] = useState<Division>(DIVISIONS[0]);
   const [signInPending, setSignInPending] = useState(false);
@@ -63,12 +64,16 @@ export default function AuthPage() {
 
   async function onRegister(e: React.FormEvent) {
     e.preventDefault();
+    if (password !== passwordConfirm) {
+      showError("Passwords do not match.");
+      return;
+    }
     setRegisterPending(true);
     try {
       const r = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name, division }),
+        body: JSON.stringify({ email, password, passwordConfirm, name, division }),
       });
       const data = await r.json();
       if (!r.ok) {
@@ -108,6 +113,7 @@ export default function AuthPage() {
             disabled={signInPending || registerPending}
             onClick={() => {
               setMode("signin");
+              setPasswordConfirm("");
             }}
           >
             Sign in
@@ -122,6 +128,7 @@ export default function AuthPage() {
             disabled={signInPending || registerPending}
             onClick={() => {
               setMode("register");
+              setPasswordConfirm("");
             }}
           >
             Create account
@@ -224,6 +231,19 @@ export default function AuthPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="reg-password-confirm">Confirm password</label>
+              <input
+                id="reg-password-confirm"
+                className="admin-input"
+                type="password"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
                 required
                 minLength={8}
                 autoComplete="new-password"

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   batchStateLine,
@@ -63,6 +64,7 @@ export function LeaderboardView({
   if (!batch) return null;
 
   const publishedReady = batch.state === "published";
+  const isClosed = batch.state === "closed";
   const hasWinners = batch.miniGames.length > 0 || batch.realLifePrompt.length > 0;
 
   return (
@@ -89,7 +91,17 @@ export function LeaderboardView({
 
       <p className="batch-state">{batchStateLine(batch)}</p>
 
-      {!publishedReady ? (
+      {isClosed ? (
+        <div className="card leaderboard-empty">
+          <h3 className="card-title">
+            <span className="title-icon">◇</span> Competition not open yet
+          </h3>
+          <p className="hero-lead">
+            This batch is <strong>closed</strong> until the submission window opens. Submissions and voting are disabled.
+            Check the schedule on <Link href="/info">Challenge info</Link> for opening times.
+          </p>
+        </div>
+      ) : !publishedReady ? (
         <div className="card leaderboard-empty">
           <h3 className="card-title">
             <span className="title-icon">◇</span> Results not published yet

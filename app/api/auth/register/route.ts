@@ -17,11 +17,15 @@ export async function POST(req: Request) {
     const body = await req.json();
     const email = String(body.email ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
+    const passwordConfirm = String(body.passwordConfirm ?? "");
     const name = String(body.name ?? "").trim();
     const division = String(body.division ?? "");
 
     if (!email || !password || !name || !division) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+    if (password !== passwordConfirm) {
+      return NextResponse.json({ error: "Passwords do not match" }, { status: 400 });
     }
     if (!isGarenaEmail(email)) {
       return NextResponse.json({ error: "Email must be a @garena domain address" }, { status: 400 });

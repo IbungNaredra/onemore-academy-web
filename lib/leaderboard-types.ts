@@ -1,4 +1,24 @@
-export type PublicBatchState = "open" | "voting" | "concluded" | "published";
+export type PublicBatchState = "closed" | "open" | "voting" | "internal_voting" | "concluded" | "published";
+
+/** Short label for schedule / pills (not sentence copy). */
+export function batchStateDisplayName(s: PublicBatchState): string {
+  switch (s) {
+    case "closed":
+      return "Closed";
+    case "open":
+      return "Open";
+    case "voting":
+      return "Voting";
+    case "internal_voting":
+      return "Voting";
+    case "concluded":
+      return "Concluded";
+    case "published":
+      return "Published";
+    default:
+      return s;
+  }
+}
 
 export type WinnerEntryDto = {
   creatorName: string;
@@ -40,8 +60,11 @@ export type ScheduleBatchDto = {
 export function batchStateLine(b: LeaderboardBatchDto | ScheduleBatchDto): string {
   const label = b.label;
   const state = b.state;
+  if (state === "closed") return `${label}: Closed — competition not open yet`;
   if (state === "open") return `${label}: Submissions open`;
-  if (state === "voting") return `${label}: Voting in progress`;
-  if (state === "concluded") return `${label}: Evaluation — winners on ${b.announcementDate ?? "TBD"}`;
+  if (state === "voting") return `${label}: Peer voting in progress`;
+  if (state === "internal_voting")
+    return `${label}: Internal voting — under review & Layer 2`;
+  if (state === "concluded") return `${label}: Concluded — pick winners / publish (${b.announcementDate ?? "TBD"})`;
   return `${label}: Results published`;
 }

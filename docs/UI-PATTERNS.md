@@ -1,6 +1,6 @@
 # UI patterns — loading states and feedback
 
-**Keep this file in sync** with changes to toast/snackbar behavior, submit-button components, server-action redirect messaging, **admin batch** `datetime-local` / Shanghai handling, or **OPEN→VOTING** group-preparation behavior.
+**Keep this file in sync** with changes to toast/snackbar behavior, submit-button components, server-action redirect messaging, **admin batch** `datetime-local` / Shanghai handling, **OPEN→VOTING** group-preparation behavior, **which batch receives submissions**, **normalized score** behavior, or **Layer 2 / UNDER_REVIEWED** (vote queue rules, admin under-reviewed).
 
 ---
 
@@ -58,8 +58,29 @@ Admin and submit flows use this pattern so users see success or error text witho
 
 ## Vote queue (`/vote`)
 
-- [`app/vote/page.tsx`](../app/vote/page.tsx) does **not** list pending groups. It picks **one random** incomplete Layer 1 assignment and **`redirect`s** to `/vote/[groupId]`. Users cannot choose order. Returning to `/vote` after a submit repeats random selection among remaining groups. If there are no pending groups, the empty-state message is shown.
-- Group scoring uses [`components/star-rating.tsx`](../components/star-rating.tsx) (five stars, dim until chosen) inside [`components/vote-group-form.tsx`](../components/vote-group-form.tsx); all rows must be rated before submit. On success, **`window.location.assign("/vote")`** advances to the next step (avoids re-enabling the button before soft navigation, which caused double-submit / “Already submitted”).
+- [`app/vote/page.tsx`](../app/vote/page.tsx) does **not** list pending groups. It picks **one random** pending group (see below) and **`redirect`s** to `/vote/[groupId]`. On success, [`components/vote-group-form.tsx`](../components/vote-group-form.tsx) uses **`window.location.assign("/vote")`** for the next task.
+- **Which groups appear** is defined by [`lib/vote-queue-where.ts`](../lib/vote-queue-where.ts) (`pendingVoteGroupsWhere`):
+  - **`fallback_voter`:** only **`UNDER_REVIEWED`** groups while Layer 2 is open (`INTERNAL_VOTING`, **`winnersPublishedAt`** null, not past **`layer2EndsAt`** — see [`lib/layer2-voting.ts`](../lib/layer2-voting.ts)).
+  - **Participant / `internal_team`:** Layer 1 while batch is **`VOTING`**, or **`UNDER_REVIEWED`** in an open Layer 2 window.
+- Group scoring uses [`components/star-rating.tsx`](../components/star-rating.tsx) (five stars) until every row is rated.
+
+### Admin — UNDER_REVIEWED (`/admin/under-reviewed`)
+
+- Lists **`UNDER_REVIEWED`** groups (batch **`INTERNAL_VOTING`** only), **Recalculate** for **`INTERNAL_VOTING`** / **`CONCLUDED`** batches, and **assign** internal team / fallback voters via a **searchable multi-select** ([`components/layer2-voter-assign-form.tsx`](../components/layer2-voter-assign-form.tsx)); server actions: [`app/actions/admin.ts`](../app/actions/admin.ts) `adminAssignLayer2Voters`, `adminReevaluateUnderReviewed`. Full behavior: **[`docs/PRD-V2.2-IMPLEMENTATION.md`](PRD-V2.2-IMPLEMENTATION.md#layer-2--under-reviewed-prd-64)**.
+
+---
+
+## Notes — batch assignment & normalized scores
+
+Short reference; full detail: **[`docs/PRD-V2.2-IMPLEMENTATION.md`](PRD-V2.2-IMPLEMENTATION.md#which-batch-gets-new-submissions-batchid)** and **[`#normalized-scores-when-they-update-vs-what-pages-read`](PRD-V2.2-IMPLEMENTATION.md#normalized-scores-when-they-update-vs-what-pages-read)**.
+
+### Which `batchId` on submit
+
+- [`lib/submission-batch.ts`](../lib/submission-batch.ts) **`resolveSubmissionBatch`**: among batches with **`status === OPEN`**, pick the first (by **`batchNumber`**) where **`openAt <= now < votingAt`**. Users do not pick the batch manually.
+
+### Normalized scores
+
+- [`lib/scoring.ts`](../lib/scoring.ts) **`refreshNormalizedScoresForBatchCategory`** runs after a successful group vote ([`app/actions/vote.ts`](../app/actions/vote.ts)). **`Submission.normalizedScore`** is updated in the DB; finalist / leaderboard views **read** those stored values (no per-request recomputation of the min–max formula on list pages).
 
 ---
 
