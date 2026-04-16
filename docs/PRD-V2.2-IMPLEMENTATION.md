@@ -9,7 +9,7 @@
 - **Participants** register with a Garena-domain email, submit UGC in-app during **OPEN** batches, and vote in **assigned groups** (Layer 1) with **1–5** scores, all-or-nothing per group.
 - **Roles:** `PARTICIPANT`, `FALLBACK_VOTER`, `INTERNAL_TEAM`, `ADMIN` (see `UserRole` in [`prisma/schema.prisma`](../prisma/schema.prisma)).
 - **Categories:** Mini Games vs **Real Life + Prompt** (`ContentCategory`).
-- **Batch lifecycle:** **`CLOSED`** (competition not open yet; no submissions or voting) → `OPEN` → `VOTING` → **`INTERNAL_VOTING`** → **`CONCLUDED`**. Cron (optional **`autoTransition`**) can advance **`CLOSED` → `OPEN`** at **`openAt`**, then **`OPEN` → `VOTING`** at **`votingAt`**, and **`VOTING` → `INTERNAL_VOTING`** at **`concludedAt`** ([`GET /api/cron/batch-transitions`](../app/api/cron/batch-transitions/route.ts), `CRON_SECRET`). New batches default to **`CLOSED`**. When status first becomes **`VOTING`**, Layer 1 groups and voter assignments are **prepared automatically** if not already done (see [Admin Batches tab](#admin-batches-tab)). Entering **`INTERNAL_VOTING`** runs **`UNDER_REVIEWED`** flagging (50% rule). **`CONCLUDED`** is set **manually** when internal review is done and the batch is ready for winner selection / public leaderboard (see [Layer 2 — UNDER_REVIEWED](#layer-2--under-reviewed-prd-64)).
+- **Batch lifecycle:** **`CLOSED`** (competition not open yet; no submissions or voting) → `OPEN` → `VOTING` → **`INTERNAL_VOTING`** → **`CONCLUDED`**. Cron (optional **`autoTransition`**) can advance **`CLOSED` → `OPEN`** at **`openAt`**, then **`OPEN` → `VOTING`** at **`votingAt`**, and **`VOTING` → `INTERNAL_VOTING`** at **`concludedAt`** ([`GET /api/cron/batch-transitions`](../app/api/cron/batch-transitions/route.ts), `CRON_SECRET`). New batches default to **`CLOSED`**. When status first becomes **`VOTING`**, Layer 1 groups and voter assignments are **prepared automatically** if not already done (see [Admin Batches tab](#admin-batches-tab)). Entering **`INTERNAL_VOTING`** runs **Layer 1 no-show prune** then **`UNDER_REVIEWED`** flagging (50% rule); see [Detection (50% rule)](#detection-50-rule). **`CONCLUDED`** is set **manually** when internal review is done and the batch is ready for winner selection / public leaderboard (see [Layer 2 — UNDER_REVIEWED](#layer-2--under-reviewed-prd-64)).
 - **Leaderboard:** published winners show **name, email, normalized score, link**; **Top 10** block on the same page for **ADMIN** + **INTERNAL_TEAM** only.
 - **Google Sheets / Forms:** **not integrated** (v2.2 §16).
 
@@ -43,7 +43,9 @@
 | Eligibility (`canVote`) | [`lib/eligibility.ts`](../lib/eligibility.ts) |
 | Scores / normalization | [`lib/scoring.ts`](../lib/scoring.ts) |
 | URL check | [`lib/url-check.ts`](../lib/url-check.ts) |
-| Batch cron helper | [`lib/batch-jobs.ts`](../lib/batch-jobs.ts) (`runBatchTransitions`, `flagUnderReviewedGroups`) |
+| Batch cron helper | [`lib/batch-jobs.ts`](../lib/batch-jobs.ts) (`runBatchTransitions`, `pruneIncompletePeerLayer1Assignments`, `flagUnderReviewedGroups`) |
+| Public schedule + leaderboard batch DTOs | [`lib/program-batch-public.ts`](../lib/program-batch-public.ts), [`lib/leaderboard-types.ts`](../lib/leaderboard-types.ts) (`PublicBatchState`, `batchStateDisplayName`, `batchStateLine`) |
+| Schedule / leaderboard UI | [`components/schedule-grid.tsx`](../components/schedule-grid.tsx), [`components/leaderboard-view.tsx`](../components/leaderboard-view.tsx) |
 | Layer 2 window + vote queue filters | [`lib/layer2-voting.ts`](../lib/layer2-voting.ts), [`lib/vote-queue-where.ts`](../lib/vote-queue-where.ts) |
 | UNDER_REVIEWED metrics (extra voters) | [`lib/under-reviewed-metrics.ts`](../lib/under-reviewed-metrics.ts) |
 | Server actions | [`app/actions/submit.ts`](../app/actions/submit.ts), [`vote.ts`](../app/actions/vote.ts), [`admin.ts`](../app/actions/admin.ts) |
@@ -58,15 +60,15 @@ Route: [`/admin/batch`](../app/admin/batch/page.tsx). Server actions: [`app/acti
 
 ### Schedule (date / time pickers)
 
-- The form uses the browser’s **native** `<input type="datetime-local">` for **Open**, **Voting start**, **Concluded**, and optional **Leaderboard publish**.
+- The form uses the browser’s **native** `<input type="datetime-local">` for **Open — submissions start**, **Voting start**, **Peer voting ends → INTERNAL_VOTING** (stored as `concludedAt`), and optional **Leaderboard publish**.
 - Values are **Asia/Shanghai** wall time (UTC+8, no DST), matching the copy on the page. Conversion helpers live in [`lib/datetime-shanghai.ts`](../lib/datetime-shanghai.ts): `formatUtcAsShanghaiDatetimeLocal` (DB → input) and `parseShanghaiDatetimeLocalToUtc` (submit → UTC `Date`). The database stores UTC instants.
-- **Validation:** Open must be before Voting start, and Voting start before Concluded; failures redirect with an error toast (`buildToastUrl`).
+- **Validation:** Open must be before Voting start, and Voting start before the peer-voting end (`concludedAt`); failures redirect with an error toast (`buildToastUrl`).
 
 ### Voting groups preparation (updated mechanism)
 
 - There is **no** separate **“Prepare voting”** button. Preparation runs **automatically** when a batch transitions **OPEN → VOTING**:
   - **Manual:** admin changes status with **Set status** → [`adminSetBatchStatus`](../app/actions/admin.ts) updates the row, then calls [`prepareBatchIfEnteringVoting`](../lib/voting-assign.ts).
-  - **Cron:** [`runBatchTransitions`](../lib/batch-jobs.ts) may set status to `VOTING` when `autoTransition` is on and wall-clock crosses `votingAt`; it then calls the same `prepareBatchIfEnteringVoting` helper.
+  - **Cron:** [`runBatchTransitions`](../lib/batch-jobs.ts) may set status from **`CLOSED` → `OPEN`** at `openAt`, then **`OPEN` → `VOTING`** when `autoTransition` is on and wall-clock crosses `votingAt`; on entering `VOTING` it calls the same `prepareBatchIfEnteringVoting` helper.
 - [`prepareBatchIfEnteringVoting`](../lib/voting-assign.ts) only runs the heavy work ([`prepareBatchForVoting`](../lib/voting-assign.ts): eligibility refresh, Layer 1 groups for both categories, `voterAssignmentDone = true`) when **`voterAssignmentDone`** is still **false**, so idempotent re-entry to `VOTING` does not rebuild groups unnecessarily.
 - Each batch card shows **voters assigned** vs **voters not assigned** from `ProgramBatch.voterAssignmentDone`.
 
@@ -105,9 +107,10 @@ Implementation: [`lib/scoring.ts`](../lib/scoring.ts) (`refreshNormalizedScoresF
 
 ### Detection (50% rule)
 
-- When a batch enters **`INTERNAL_VOTING`**, [`flagUnderReviewedGroups`](../lib/batch-jobs.ts) runs — when **cron** transitions `VOTING → INTERNAL_VOTING`, when **admin** sets status to **`INTERNAL_VOTING`**, or when **admin** jumps `VOTING → CONCLUDED` (same flagging for parity) ([`adminSetBatchStatus`](../app/actions/admin.ts)).
-- Per Layer 1 group: **completion rate** = voters who completed the group ÷ total assignments. **`≥ 50%`** → `VALID`; **`< 50%`** → **`UNDER_REVIEWED`**.
-- Admin can **re-run** the same calculation for any **`INTERNAL_VOTING`** or **`CONCLUDED`** batch from [`/admin/under-reviewed`](../app/admin/under-reviewed/page.tsx) (**Recalculate**).
+- When peer voting ends (`VOTING` → **`INTERNAL_VOTING`**, or **`VOTING` → `CONCLUDED`**), [`pruneIncompletePeerLayer1Assignments`](../lib/batch-jobs.ts) runs **first**: it **deletes** incomplete **`GroupVoterAssignment`** rows whose **`source`** is **`PEER_LAYER1`** (peer roster from [`assignGroupsAndVoters`](../lib/voting-assign.ts)). Layer 1 no-shows are **removed from the denominator**; voters who submitted keep their rows. Admin-added Layer 2 supplements use **`source = LAYER2_ADMIN`** ([`adminAssignLayer2Voters`](../app/actions/admin.ts)) and are **never** pruned here.
+- Then [`flagUnderReviewedGroups`](../lib/batch-jobs.ts) runs — when **cron** transitions `VOTING → INTERNAL_VOTING`, when **admin** sets status to **`INTERNAL_VOTING`** from **`VOTING`**, or when **admin** jumps `VOTING → CONCLUDED` (same flagging for parity) ([`adminSetBatchStatus`](../app/actions/admin.ts)).
+- Per Layer 1 group: **completion rate** = voters who completed the group ÷ **remaining** assignments (after peer prune). **`≥ 50%`** → `VALID`; **`< 50%`** → **`UNDER_REVIEWED`**.
+- Admin can **re-run** the completion calculation (no second prune) for any **`INTERNAL_VOTING`** or **`CONCLUDED`** batch from [`/admin/under-reviewed`](../app/admin/under-reviewed/page.tsx) (**Recalculate**).
 
 ### Layer 2 “open” vs batch ending
 
@@ -137,6 +140,7 @@ Implementation: [`lib/scoring.ts`](../lib/scoring.ts) (`refreshNormalizedScoresF
 - Apply [`prisma/migrations/20260415000000_prd_v22_option_a/migration.sql`](../prisma/migrations/20260415000000_prd_v22_option_a/migration.sql) (destructive: drops legacy v1.3 tables if present).
 - Apply [`prisma/migrations/20260415120000_batch_internal_voting/migration.sql`](../prisma/migrations/20260415120000_batch_internal_voting/migration.sql) — adds **`INTERNAL_VOTING`** to `BatchStatus`.
 - Apply [`prisma/migrations/20260415130000_batch_status_closed/migration.sql`](../prisma/migrations/20260415130000_batch_status_closed/migration.sql) — adds **`CLOSED`** (pre-open) to `BatchStatus`.
+- Apply [`prisma/migrations/20260416120000_group_voter_assignment_source/migration.sql`](../prisma/migrations/20260416120000_group_voter_assignment_source/migration.sql) — adds **`GroupVoterAssignmentSource`** (`PEER_LAYER1` / `LAYER2_ADMIN`) for peer no-show pruning.
 - Then `npm run db:seed`.
 
 ---

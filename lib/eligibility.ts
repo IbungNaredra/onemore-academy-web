@@ -18,7 +18,8 @@ export async function recomputeCanVote(batchId: string, userId: string) {
   if (user.role === UserRole.INTERNAL_TEAM) {
     canVote = true;
   } else if (user.role === UserRole.FALLBACK_VOTER) {
-    canVote = existing?.canVote ?? false;
+    /** Default true so fallback voters can be assigned to groups / Layer 2 without manual `BatchVoterEligibility` rows. */
+    canVote = existing?.canVote ?? true;
   } else {
     const activeSubs = await prisma.submission.count({
       where: { batchId, userId, status: SubmissionStatus.ACTIVE },

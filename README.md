@@ -34,6 +34,8 @@ Copy `.env.example` to `.env.local` and adjust values.
 | `AUTH_SECRET` | Secret for NextAuth session signing (long random string) |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seed admin user (must match seed after `db:seed`) |
+| `TEST_PARTICIPANT_PASSWORD` | Optional: password for seeded load-test UGC users (`test.ugc.p*@garena.com`) |
+| `TEST_INTERNAL_TEAM_PASSWORD` | Optional: password for seeded internal team test users (`internal.team.it*@garena.com`) |
 | `CRON_SECRET` | Optional: `Authorization: Bearer` for `GET /api/cron/batch-transitions` |
 
 **Important:** When `DATABASE_URL` is set and migrated/seeded, sign-in uses **User** rows in the database.
@@ -71,12 +73,16 @@ npx prisma migrate deploy
 npm run db:seed
 ```
 
+Apply all migrations in `prisma/migrations/` in order (base schema, then `INTERNAL_VOTING` and `CLOSED` enum values if present). `migrate deploy` applies the full chain.
+
 Seed creates:
 
 - **Admin** user (default `admin.onemorechallenge@garena.com` / `admin123` unless overridden by env)
 - **Demo participant** (`participant.demo@garena.com` / `participant123`)
-- **Three batches** (`batch-1` … `batch-3`) with PRD-style May 2026 dates, status **OPEN**
+- **Three batches** (`batch-1` … `batch-3`) with PRD-style May 2026 dates — each is explicitly set to **`OPEN`** (schema default for new rows is **`CLOSED`**)
 - One **demo submission** on Batch 1 for the demo participant
+- **Load-test cohort:** 20 participants `test.ugc.p01@garena.com` … `test.ugc.p20@garena.com` (password `test123456` or `TEST_PARTICIPANT_PASSWORD`) with one UGC each on Batch 1
+- **Internal team test cohort:** 20 users `internal.team.it01@garena.com` … `internal.team.it20@garena.com` (password `12345678` or `TEST_INTERNAL_TEAM_PASSWORD`) for Layer 2 / finalist / Top 10 testing
 
 ### 4. Run the app
 
@@ -134,6 +140,7 @@ docs/
   GOOGLE-SHEETS.md                   # Deprecated (v1.3 only)
 components/
   snackbar-context.tsx, snackbar-from-search-params.tsx, form-submit-button.tsx, providers.tsx
+  schedule-grid.tsx, leaderboard-view.tsx, layer2-voter-assign-form.tsx, publish-winners-form.tsx
 ```
 
 ---
@@ -178,7 +185,14 @@ Full table: [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)
 - **Schedule:** Native **`datetime-local`** inputs; times are edited as **Asia/Shanghai** and stored as UTC — see [`lib/datetime-shanghai.ts`](lib/datetime-shanghai.ts) and **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md#admin-batches-tab)**.
 - **Voting groups:** There is no separate “prepare voting” control. On **OPEN → VOTING** (manual status change or cron with `autoTransition`), the app runs group + voter assignment once if needed — **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md#admin-batches-tab)**.
 - **Which batch a submission uses** (OPEN + date window) and **how normalized scores update**: **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md#which-batch-gets-new-submissions-batchid)** · **[`#normalized-scores-when-they-update-vs-what-pages-read`](docs/PRD-V2.2-IMPLEMENTATION.md#normalized-scores-when-they-update-vs-what-pages-read)** · **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md#notes--batch-assignment--normalized-scores)** (short notes).
-- **Layer 2 (UNDER_REVIEWED):** flagging when entering **`INTERNAL_VOTING`** (cron + manual), **`/admin/under-reviewed`**, vote queue rules for **fallback** vs others — **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md#layer-2--under-reviewed-prd-64)**.
+- **Layer 2 (UNDER_REVIEWED):** at end of peer voting, **incomplete Layer 1 peer assignments are removed** (no-shows out of the 50% denominator), then **`UNDER_REVIEWED`** flagging; cron + manual status change; **`/admin/under-reviewed`**; vote queue rules for **fallback** vs others — **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md#layer-2--under-reviewed-prd-64)**.
+
+### Public batch schedule (`/info`, `/leaderboard`)
+
+- **Challenge info** embeds [`components/schedule-grid.tsx`](components/schedule-grid.tsx); data comes from [`lib/program-batch-public.ts`](lib/program-batch-public.ts) (`getScheduleBatches`).
+- **State mapping** lives in [`lib/leaderboard-types.ts`](lib/leaderboard-types.ts): `PublicBatchState`, `batchStateDisplayName` (short pill text), `batchStateLine` (sentence under the leaderboard week picker).
+- **Pill labels:** e.g. **Closed** (`CLOSED`), **Open**, **Voting** — both peer voting (`VOTING`) and internal/Layer 2 phase (`INTERNAL_VOTING`) use the short label **Voting** on the schedule pill (longer copy in `batchStateLine` still distinguishes internal voting where relevant).
+- **`CLOSED`** batches show a dedicated empty state on the leaderboard until the batch opens. See **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md#challenge-info--batch-schedule-public)**.
 
 ---
 
@@ -198,8 +212,8 @@ Full table: [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)
 
 | Document | Contents |
 |----------|----------|
-| **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)** | **Current** — routes, schema, gaps; **submission `batchId`**; **normalized scores**; **Layer 2 / UNDER_REVIEWED** |
-| **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md)** | Loading states, snackbars, `FormSubmitButton`, URL toasts, admin batch pickers; vote queue (L1 vs L2); batch/scoring notes |
+| **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)** | **Current** — routes, schema, gaps; **`CLOSED` / `INTERNAL_VOTING`** lifecycle; submission **`batchId`**; normalized scores; Layer 2 / UNDER_REVIEWED |
+| **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md)** | Snackbars, `FormSubmitButton`, admin batches, **public schedule pills**, vote queue (L1 vs L2), under-reviewed voter picker |
 | **[`docs/README.md`](docs/README.md)** | Doc folder index |
 | **[`docs/STAKEHOLDER-DECISION-PRD-V2.2.md`](docs/STAKEHOLDER-DECISION-PRD-V2.2.md)** | Option A record |
 | **[`docs/PRD.md`](docs/PRD.md)** | Historical **v1.3** PRD (judge + Sheet) |

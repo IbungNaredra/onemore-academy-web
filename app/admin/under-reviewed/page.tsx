@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import {
   adminAssignLayer2Voters,
   adminReevaluateUnderReviewed,
+  adminUnassignAllLayer2Voters,
+  adminUnassignLayer2Voter,
 } from "@/app/actions/admin";
 import { FormSubmitButton } from "@/components/form-submit-button";
 import { Layer2VoterAssignForm } from "@/components/layer2-voter-assign-form";
@@ -41,6 +43,13 @@ export default async function AdminUnderReviewedPage() {
       orderBy: { email: "asc" },
     }),
   ]);
+
+  const assignableSorted = [...assignableUsers].sort((a, b) => {
+    const rank = (r: UserRole) => (r === UserRole.INTERNAL_TEAM ? 0 : r === UserRole.FALLBACK_VOTER ? 1 : 2);
+    const d = rank(a.role) - rank(b.role);
+    if (d !== 0) return d;
+    return a.email.localeCompare(b.email);
+  });
 
   return (
     <main className="panel admin-wide">
@@ -96,8 +105,11 @@ export default async function AdminUnderReviewedPage() {
                 {(rate * 100).toFixed(0)}% ({done}/{total}) · suggested extra voters to reach 50%: <strong>{need}</strong>
               </p>
               <Layer2VoterAssignForm
+                groupId={g.id}
                 assignAction={adminAssignLayer2Voters.bind(null, g.id)}
-                assignableUsers={assignableUsers.map((u) => ({
+                unassignAction={adminUnassignLayer2Voter.bind(null, g.id)}
+                unassignAllAction={adminUnassignAllLayer2Voters.bind(null, g.id)}
+                assignableUsers={assignableSorted.map((u) => ({
                   id: u.id,
                   email: u.email,
                   name: u.name,

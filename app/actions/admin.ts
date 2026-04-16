@@ -5,11 +5,18 @@ import { prisma } from "@/lib/prisma";
 import { prepareBatchIfEnteringVoting } from "@/lib/voting-assign";
 import { refreshNormalizedScoresForBatchCategory } from "@/lib/scoring";
 import bcrypt from "bcryptjs";
-import { BatchStatus, ContentCategory, UserRole, SubmissionStatus, GroupValidity } from "@prisma/client";
+import {
+  BatchStatus,
+  ContentCategory,
+  UserRole,
+  SubmissionStatus,
+  GroupValidity,
+  GroupVoterAssignmentSource,
+} from "@prisma/client";
 import { recomputeCanVote } from "@/lib/eligibility";
 import { parseShanghaiDatetimeLocalToUtc } from "@/lib/datetime-shanghai";
 import { buildToastUrl } from "@/lib/snackbar-url";
-import { flagUnderReviewedGroups } from "@/lib/batch-jobs";
+import { flagUnderReviewedGroups, pruneIncompletePeerLayer1Assignments } from "@/lib/batch-jobs";
 import { isLayer2AdminAssignmentAllowed } from "@/lib/layer2-voting";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -32,6 +39,9 @@ export async function adminSetBatchStatus(batchId: string, status: BatchStatus) 
     (status === BatchStatus.INTERNAL_VOTING && prev.status !== BatchStatus.INTERNAL_VOTING) ||
     (status === BatchStatus.CONCLUDED && prev.status === BatchStatus.VOTING);
   if (shouldFlagUnderReviewed) {
+    if (prev.status === BatchStatus.VOTING) {
+      await pruneIncompletePeerLayer1Assignments(batchId);
+    }
     await flagUnderReviewedGroups(batchId);
   }
   revalidatePath("/admin/batch");
@@ -113,8 +123,38 @@ export async function adminDisqualify(submissionId: string, reason: string) {
 
 export async function adminSetUserRole(userId: string, role: UserRole) {
   await requireAdminUser();
+  const prev = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (!prev) {
+    redirect(buildToastUrl("/admin/users", "error", "User not found."));
+  }
+
   await prisma.user.update({ where: { id: userId }, data: { role } });
+
+  if (role === UserRole.FALLBACK_VOTER && prev.role !== UserRole.FALLBACK_VOTER) {
+    const batches = await prisma.programBatch.findMany({ select: { id: true } });
+    for (const b of batches) {
+      await prisma.batchVoterEligibility.upsert({
+        where: { batchId_userId: { batchId: b.id, userId } },
+        create: { batchId: b.id, userId, canVote: true, adminOverride: true },
+        update: { canVote: true, adminOverride: true },
+      });
+    }
+  }
+
+  if (prev.role === UserRole.FALLBACK_VOTER && role !== UserRole.FALLBACK_VOTER) {
+    await prisma.batchVoterEligibility.updateMany({
+      where: { userId },
+      data: { adminOverride: false },
+    });
+    const batches = await prisma.programBatch.findMany({ select: { id: true } });
+    for (const b of batches) {
+      await recomputeCanVote(b.id, userId);
+    }
+  }
+
   revalidatePath("/admin/users");
+  revalidatePath("/vote");
+  revalidatePath("/submit");
   redirect(buildToastUrl("/admin/users", "success", "Role saved."));
 }
 
@@ -143,6 +183,10 @@ export async function adminPublishWinners(batchId: string, submissionIds: string
   await requireAdminUser();
   const batch = await prisma.programBatch.findUnique({ where: { id: batchId } });
   if (!batch) throw new Error("Batch not found");
+
+  if (submissionIds.length === 0) {
+    redirect(buildToastUrl("/admin/winners", "error", "Pick at least one submission to publish."));
+  }
 
   await prisma.publishedWinner.deleteMany({ where: { batchId } });
 
@@ -255,7 +299,11 @@ export async function adminAssignLayer2Voters(groupId: string, formData: FormDat
   for (const u of users) {
     await prisma.groupVoterAssignment.upsert({
       where: { groupId_userId: { groupId, userId: u.id } },
-      create: { groupId, userId: u.id },
+      create: {
+        groupId,
+        userId: u.id,
+        source: GroupVoterAssignmentSource.LAYER2_ADMIN,
+      },
       update: {},
     });
   }
@@ -263,4 +311,166 @@ export async function adminAssignLayer2Voters(groupId: string, formData: FormDat
   revalidatePath("/admin/under-reviewed");
   revalidatePath("/vote");
   redirect(buildToastUrl("/admin/under-reviewed", "success", "Voters assigned."));
+}
+
+/** Remove an internal_team or fallback_voter assignment from an UNDER_REVIEWED group (does not remove participants). */
+export async function adminUnassignLayer2Voter(groupId: string, formData: FormData) {
+  await requireAdminUser();
+  const userId = String(formData.get("userId") ?? "").trim();
+  if (!userId) {
+    redirect(buildToastUrl("/admin/under-reviewed", "error", "Missing user."));
+  }
+
+  const group = await prisma.contentGroup.findUnique({
+    where: { id: groupId },
+    include: { batch: true },
+  });
+  if (!group || group.layer !== 1) {
+    redirect(buildToastUrl("/admin/under-reviewed", "error", "Group not found."));
+  }
+  if (group.validityStatus !== GroupValidity.UNDER_REVIEWED) {
+    redirect(buildToastUrl("/admin/under-reviewed", "error", "Group is not UNDER_REVIEWED."));
+  }
+  if (!isLayer2AdminAssignmentAllowed(group.batch)) {
+    if (group.batch.winnersPublishedAt != null) {
+      redirect(
+        buildToastUrl(
+          "/admin/under-reviewed",
+          "error",
+          "Winners are already published for this batch; Layer 2 voter changes are closed.",
+        ),
+      );
+    }
+    redirect(
+      buildToastUrl(
+        "/admin/under-reviewed",
+        "error",
+        "Batch must be INTERNAL_VOTING (and winners not yet published) to change Layer 2 voters.",
+      ),
+    );
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (!user || (user.role !== UserRole.INTERNAL_TEAM && user.role !== UserRole.FALLBACK_VOTER)) {
+    redirect(
+      buildToastUrl(
+        "/admin/under-reviewed",
+        "error",
+        "Only admin-added internal team or fallback voters can be removed here. Participant assignments are managed by the voting system.",
+      ),
+    );
+  }
+
+  const assignment = await prisma.groupVoterAssignment.findUnique({
+    where: { groupId_userId: { groupId, userId } },
+  });
+  if (!assignment) {
+    redirect(buildToastUrl("/admin/under-reviewed", "error", "That user is not assigned to this group."));
+  }
+
+  const groupSubmissions = await prisma.groupSubmission.findMany({
+    where: { groupId },
+    select: { submissionId: true },
+  });
+  const submissionIds = groupSubmissions.map((s) => s.submissionId);
+
+  await prisma.$transaction(async (tx) => {
+    if (submissionIds.length > 0) {
+      await tx.rating.deleteMany({
+        where: { voterId: userId, submissionId: { in: submissionIds } },
+      });
+    }
+    await tx.groupVoterAssignment.delete({
+      where: { groupId_userId: { groupId, userId } },
+    });
+  });
+
+  revalidatePath("/admin/under-reviewed");
+  revalidatePath("/vote");
+  redirect(buildToastUrl("/admin/under-reviewed", "success", "Voter removed from group."));
+}
+
+/** Remove every internal_team and fallback_voter assignment on this group (participants unchanged). */
+export async function adminUnassignAllLayer2Voters(groupId: string) {
+  await requireAdminUser();
+
+  const group = await prisma.contentGroup.findUnique({
+    where: { id: groupId },
+    include: { batch: true },
+  });
+  if (!group || group.layer !== 1) {
+    redirect(buildToastUrl("/admin/under-reviewed", "error", "Group not found."));
+  }
+  if (group.validityStatus !== GroupValidity.UNDER_REVIEWED) {
+    redirect(buildToastUrl("/admin/under-reviewed", "error", "Group is not UNDER_REVIEWED."));
+  }
+  if (!isLayer2AdminAssignmentAllowed(group.batch)) {
+    if (group.batch.winnersPublishedAt != null) {
+      redirect(
+        buildToastUrl(
+          "/admin/under-reviewed",
+          "error",
+          "Winners are already published for this batch; Layer 2 voter changes are closed.",
+        ),
+      );
+    }
+    redirect(
+      buildToastUrl(
+        "/admin/under-reviewed",
+        "error",
+        "Batch must be INTERNAL_VOTING (and winners not yet published) to change Layer 2 voters.",
+      ),
+    );
+  }
+
+  const assignments = await prisma.groupVoterAssignment.findMany({
+    where: { groupId },
+    include: { user: { select: { role: true } } },
+  });
+  const targetUserIds = assignments
+    .filter((a) => a.user.role === UserRole.INTERNAL_TEAM || a.user.role === UserRole.FALLBACK_VOTER)
+    .map((a) => a.userId);
+
+  if (targetUserIds.length === 0) {
+    redirect(
+      buildToastUrl(
+        "/admin/under-reviewed",
+        "error",
+        "No internal team or fallback voters on this group to remove.",
+      ),
+    );
+  }
+
+  const groupSubmissions = await prisma.groupSubmission.findMany({
+    where: { groupId },
+    select: { submissionId: true },
+  });
+  const submissionIds = groupSubmissions.map((s) => s.submissionId);
+
+  await prisma.$transaction(async (tx) => {
+    if (submissionIds.length > 0) {
+      await tx.rating.deleteMany({
+        where: {
+          voterId: { in: targetUserIds },
+          submissionId: { in: submissionIds },
+        },
+      });
+    }
+    await tx.groupVoterAssignment.deleteMany({
+      where: { groupId, userId: { in: targetUserIds } },
+    });
+  });
+
+  revalidatePath("/admin/under-reviewed");
+  revalidatePath("/vote");
+  redirect(
+    buildToastUrl(
+      "/admin/under-reviewed",
+      "success",
+      `Removed ${targetUserIds.length} internal team / fallback voter${targetUserIds.length === 1 ? "" : "s"} from this group.`,
+    ),
+  );
 }

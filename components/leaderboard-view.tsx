@@ -19,11 +19,7 @@ function TypeSection({ label, winners }: { label: string; winners: WinnerEntryDt
         {winners.map((item) => (
           <article className="winner-item" key={`${item.creatorEmail}-${item.contentUrl}`}>
             <p className="winner-item-name">{item.creatorName}</p>
-            <p className="winner-item-meta">{item.creatorEmail}</p>
             <p className="winner-item-type">{item.contentType}</p>
-            {item.normalizedScore != null && (
-              <p className="winner-item-score">Score: {item.normalizedScore.toFixed(2)} / 5.0</p>
-            )}
             <a className="winner-item-link" href={item.contentUrl} target="_blank" rel="noopener noreferrer">
               View UGC
             </a>
@@ -71,7 +67,7 @@ export function LeaderboardView({
     <>
       <div className="winners-head">
         <h2 className="section-h2">Winner of the Week</h2>
-        <p className="section-desc">Mini Games and Real Life + Prompt · scores shown after publish (PRD v2.2).</p>
+        <p className="section-desc">Mini Games and Real Life + Prompt · published winners by creator display name.</p>
       </div>
 
       <div className="week-picker" role="tablist" aria-label="Select batch">

@@ -43,6 +43,12 @@ enum GroupValidity {
   UNDER_REVIEWED
 }
 
+/// Layer 1 peer roster vs admin-added Layer 2 supplements (UNDER_REVIEWED).
+enum GroupVoterAssignmentSource {
+  PEER_LAYER1
+  LAYER2_ADMIN
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -137,14 +143,16 @@ model GroupSubmission {
 }
 
 model GroupVoterAssignment {
-  id          String       @id @default(cuid())
+  id          String                       @id @default(cuid())
   groupId     String
-  group       ContentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group       ContentGroup                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
   userId      String
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  completed   Boolean      @default(false)
+  user        User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completed   Boolean                      @default(false)
   completedAt DateTime?
-  createdAt   DateTime     @default(now())
+  createdAt   DateTime                     @default(now())
+  /// Peer assignments from group build; admin Layer 2 adds are LAYER2_ADMIN (never pruned as no-shows).
+  source      GroupVoterAssignmentSource   @default(PEER_LAYER1)
 
   @@unique([groupId, userId])
   @@index([userId])

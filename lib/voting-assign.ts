@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { bucketIndices } from "@/lib/group-algorithm";
-import { BatchStatus, ContentCategory, SubmissionStatus, UserRole } from "@prisma/client";
+import { BatchStatus, ContentCategory, GroupVoterAssignmentSource, SubmissionStatus, UserRole } from "@prisma/client";
 import { recomputeAllEligibilityForBatch } from "@/lib/eligibility";
 
 /** Build Layer 1 peer groups + voter assignments for one category (OPEN or VOTING). */
@@ -68,6 +68,7 @@ export async function assignGroupsAndVoters(batchId: string, category: ContentCa
         data: {
           groupId: group.id,
           userId: e.userId,
+          source: GroupVoterAssignmentSource.PEER_LAYER1,
         },
       });
     }

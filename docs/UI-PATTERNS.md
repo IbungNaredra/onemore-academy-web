@@ -1,6 +1,6 @@
 # UI patterns — loading states and feedback
 
-**Keep this file in sync** with changes to toast/snackbar behavior, submit-button components, server-action redirect messaging, **admin batch** `datetime-local` / Shanghai handling, **OPEN→VOTING** group-preparation behavior, **which batch receives submissions**, **normalized score** behavior, or **Layer 2 / UNDER_REVIEWED** (vote queue rules, admin under-reviewed).
+**Keep this file in sync** with changes to toast/snackbar behavior, submit-button components, server-action redirect messaging, **admin batch** `datetime-local` / Shanghai handling, **`CLOSED`→`OPEN` and `OPEN`→`VOTING`** transitions and group-preparation behavior, **public schedule** (`ScheduleGrid`, batch state pills), **which batch receives submissions**, **normalized score** behavior, or **Layer 2 / UNDER_REVIEWED** (vote queue rules, admin under-reviewed).
 
 ---
 
@@ -47,12 +47,37 @@ Admin and submit flows use this pattern so users see success or error text witho
 ### Date / time pickers (schedule)
 
 - Fields are HTML **`datetime-local`** inputs (browser-native picker + keyboard entry). Labels describe **Asia/Shanghai (UTC+8)**.
+- The **Peer voting ends** field maps to `concludedAt` (cron moves **`VOTING` → `INTERNAL_VOTING`** at that instant when `autoTransition` is on).
 - Display and submit use [`lib/datetime-shanghai.ts`](../lib/datetime-shanghai.ts) so wall times match PRD expectations while Prisma stores UTC.
 - **Save schedule** uses `FormSubmitButton` with pending label **Saving…**; success/error use redirect toasts via `adminSetBatchSchedule`.
+- **Set status** lists all `BatchStatus` values with short descriptions (e.g. **`CLOSED`** — competition not open yet; **`INTERNAL_VOTING`** — under review & Layer 2).
 
 ### Prepare voting groups (no dedicated button)
 
 - Group creation and voter assignment for Layer 1 are **not** triggered by a separate admin button. When status moves **OPEN → VOTING** (admin **Set status** or cron), [`prepareBatchIfEnteringVoting`](../lib/voting-assign.ts) runs once if `voterAssignmentDone` is still false — see **[`docs/PRD-V2.2-IMPLEMENTATION.md`](PRD-V2.2-IMPLEMENTATION.md#admin-batches-tab)** for the full flow and code pointers.
+
+### Admin Users — `FALLBACK_VOTER` role ([`/admin/users`](../app/admin/users/page.tsx))
+
+- When admin saves a user’s role as **`FALLBACK_VOTER`**, [`adminSetUserRole`](../app/actions/admin.ts) upserts **`BatchVoterEligibility`** for **every** `ProgramBatch` with **`canVote: true`** and **`adminOverride: true`**, so the user is eligible for voter assignment (including Layer 2) without manual per-batch toggles.
+- Changing **away** from **`FALLBACK_VOTER`** clears **`adminOverride`** on that user’s eligibility rows and runs [`recomputeCanVote`](../lib/eligibility.ts) per batch so participants / internal team rules apply again.
+
+### Admin — Publish winners (`/admin/winners`)
+
+- [`components/publish-winners-form.tsx`](../components/publish-winners-form.tsx) — searchable multi-select (same combobox styling as Layer 2 voter assign) over **all active** submissions in the batch; hidden `name="ids"` fields; **Publish** disabled until at least one row is selected.
+- Server action [`adminPublishWinners`](../app/actions/admin.ts) rejects an empty selection with a toast error.
+
+---
+
+## Challenge info — batch schedule (public)
+
+**Route:** [`app/info/page.tsx`](../app/info/page.tsx) embeds [`components/schedule-grid.tsx`](../components/schedule-grid.tsx).
+
+- Data is loaded with [`getScheduleBatches`](../lib/program-batch-public.ts) (same DTO shape as leaderboard schedule lines).
+- Each row shows submission period, evaluation (`concludedAt`), optional announcement (`leaderboardPublishAt`), and a **state pill**.
+- **Pill text** comes from [`batchStateDisplayName`](../lib/leaderboard-types.ts) (`PublicBatchState`: `closed` | `open` | `voting` | `internal_voting` | `concluded` | `published`). **`internal_voting`** uses the short label **Voting** (same word as peer **`voting`**) so the grid stays compact; longer copy is in **`batchStateLine`** on the leaderboard.
+- **CSS** in [`app/globals.css`](../app/globals.css): `.state-closed`, `.state-active`, `.state-evaluating`, `.state-published` (see [`stateClass`](../components/schedule-grid.tsx) in `schedule-grid.tsx`).
+
+**Leaderboard** ([`components/leaderboard-view.tsx`](../components/leaderboard-view.tsx)): uses **`batchStateLine`** under the week picker; batches in **`closed`** show a dedicated “Competition not open yet” card instead of “Results not published yet”.
 
 ---
 
@@ -66,7 +91,7 @@ Admin and submit flows use this pattern so users see success or error text witho
 
 ### Admin — UNDER_REVIEWED (`/admin/under-reviewed`)
 
-- Lists **`UNDER_REVIEWED`** groups (batch **`INTERNAL_VOTING`** only), **Recalculate** for **`INTERNAL_VOTING`** / **`CONCLUDED`** batches, and **assign** internal team / fallback voters via a **searchable multi-select** ([`components/layer2-voter-assign-form.tsx`](../components/layer2-voter-assign-form.tsx)); server actions: [`app/actions/admin.ts`](../app/actions/admin.ts) `adminAssignLayer2Voters`, `adminReevaluateUnderReviewed`. Full behavior: **[`docs/PRD-V2.2-IMPLEMENTATION.md`](PRD-V2.2-IMPLEMENTATION.md#layer-2--under-reviewed-prd-64)**.
+- Lists **`UNDER_REVIEWED`** groups (batch **`INTERNAL_VOTING`** only), **Recalculate** for **`INTERNAL_VOTING`** / **`CONCLUDED`** batches, and **assign** internal team / fallback voters via a **searchable multi-select** ([`components/layer2-voter-assign-form.tsx`](../components/layer2-voter-assign-form.tsx)); server actions: [`app/actions/admin.ts`](../app/actions/admin.ts) `adminAssignLayer2Voters`, `adminReevaluateUnderReviewed`. **50% completion** uses assignments **after** peer no-shows are pruned at end of Layer 1 ([`pruneIncompletePeerLayer1Assignments`](../lib/batch-jobs.ts)). Full behavior: **[`docs/PRD-V2.2-IMPLEMENTATION.md`](PRD-V2.2-IMPLEMENTATION.md#layer-2--under-reviewed-prd-64)**.
 
 ---
 

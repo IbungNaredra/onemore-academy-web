@@ -1,6 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import { prepareBatchIfEnteringVoting } from "@/lib/voting-assign";
-import { BatchStatus, GroupValidity } from "@prisma/client";
+import { BatchStatus, GroupValidity, GroupVoterAssignmentSource } from "@prisma/client";
+
+/**
+ * When peer voting ends, drop incomplete Layer 1 peer assignments so the 50% rule uses only voters who submitted.
+ * Admin-added Layer 2 assignments (`LAYER2_ADMIN`) are never pruned here.
+ */
+export async function pruneIncompletePeerLayer1Assignments(batchId: string) {
+  await prisma.groupVoterAssignment.deleteMany({
+    where: {
+      completed: false,
+      source: GroupVoterAssignmentSource.PEER_LAYER1,
+      group: { batchId, layer: 1 },
+    },
+  });
+}
 
 /** Advance batch.status when `autoTransition` and wall-clock UTC instant crosses thresholds. */
 export async function runBatchTransitions(now: Date = new Date()) {
@@ -24,6 +38,7 @@ export async function runBatchTransitions(now: Date = new Date()) {
         data: { status: next },
       });
       if (next === BatchStatus.INTERNAL_VOTING) {
+        await pruneIncompletePeerLayer1Assignments(b.id);
         await flagUnderReviewedGroups(b.id);
       }
       try {
@@ -35,7 +50,7 @@ export async function runBatchTransitions(now: Date = new Date()) {
   }
 }
 
-/** Wednesday 00:00 — mark groups below completion threshold as UNDER_REVIEWED. */
+/** After peer no-show prune (see `pruneIncompletePeerLayer1Assignments`): mark groups below 50% as UNDER_REVIEWED. */
 export async function flagUnderReviewedGroups(batchId: string) {
   const groups = await prisma.contentGroup.findMany({
     where: { batchId, layer: 1 },

@@ -2150,3 +2150,54 @@ button.form-submit-btn--pending,
 .layer2-voter-chip__remove:hover {
   color: var(--text);
 }
+
+.layer2-voter-unassign-form {
+  display: inline-flex;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+button.layer2-voter-unassign-submit {
+  font-size: 0.68rem;
+  text-decoration: underline;
+  padding: 0 0.3rem;
+  color: var(--text-muted);
+}
+
+button.layer2-voter-unassign-submit:hover {
+  color: var(--text);
+}
+
+/* Pair primary + secondary actions: same height, compact pill (overrides .cta-btn / .admin-table-btn defaults). */
+.layer2-voter-assign-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.layer2-voter-assign-actions .cta-btn,
+.layer2-voter-assign-actions .admin-table-btn {
+  margin-top: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+
+.layer2-voter-assign-actions .cta-btn {
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.22);
+}
+
+.layer2-voter-assign-actions .admin-table-btn {
+  /* Match .cta-btn row height (base .admin-table-btn uses 2.75rem min-height). */
+  min-height: 2.35rem;
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
