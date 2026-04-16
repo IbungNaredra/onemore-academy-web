@@ -2,7 +2,7 @@
 
 Web app for **onemore Internal Testing** (PRD v2.2): **self-registration** (Garena email), **in-app UGC submissions**, **group-based voting** (1–5, all-or-nothing per group), **normalized scores**, and a **public leaderboard** (with optional internal Top 10). **Admin** manages users, batch lifecycle, voter assignment prep, disqualifications, and publishing winners. **No Google Sheets or Google Forms** — data is **PostgreSQL** via **Prisma**; UI is **Next.js** (App Router) with **NextAuth** (credentials).
 
-**Docs:** [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md) (what ships vs the spec), [`docs/README.md`](docs/README.md) (index). Historical **v1.3** PRD: [`docs/PRD.md`](docs/PRD.md).
+**Docs:** [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md) (what ships vs the spec), [`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md) (loading states, snackbars, submit buttons), [`docs/README.md`](docs/README.md) (index). Historical **v1.3** PRD: [`docs/PRD.md`](docs/PRD.md).
 
 ---
 
@@ -121,15 +121,18 @@ app/
   admin/                             # Users, batch, submissions, winners
 lib/
   group-algorithm.ts, voting-assign.ts, eligibility.ts, scoring.ts
-  batch-jobs.ts, url-check.ts, divisions.ts, program-batch-public.ts
+  batch-jobs.ts, url-check.ts, divisions.ts, program-batch-public.ts, snackbar-url.ts
 prisma/
   schema.prisma, migrations/, seed.ts
 auth.ts                              # NextAuth (DB users only)
 types/next-auth.d.ts
 docs/
   PRD-V2.2-IMPLEMENTATION.md         # Current implementation status
+  UI-PATTERNS.md                      # Loading states, snackbars, submit buttons
   PRD.md                             # Historical v1.3 PRD
   GOOGLE-SHEETS.md                   # Deprecated (v1.3 only)
+components/
+  snackbar-context.tsx, snackbar-from-search-params.tsx, form-submit-button.tsx, providers.tsx
 ```
 
 ---
@@ -162,6 +165,20 @@ Full table: [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)
 
 ---
 
+## UI feedback (loading + toasts)
+
+- **Snackbar:** `SnackbarProvider` / `useSnackbar()` in [`components/snackbar-context.tsx`](components/snackbar-context.tsx); mounted from [`components/providers.tsx`](components/providers.tsx).
+- **After redirects:** [`lib/snackbar-url.ts`](lib/snackbar-url.ts) (`buildToastUrl`) + [`components/snackbar-from-search-params.tsx`](components/snackbar-from-search-params.tsx) for `toast` / `toastDescription` query params.
+- **Server forms:** [`components/form-submit-button.tsx`](components/form-submit-button.tsx) uses `useFormStatus()` for pending labels.
+- **Convention:** When changing any of the above, update **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md)**.
+
+### Admin — Batches (`/admin/batch`)
+
+- **Schedule:** Native **`datetime-local`** inputs; times are edited as **Asia/Shanghai** and stored as UTC — see [`lib/datetime-shanghai.ts`](lib/datetime-shanghai.ts) and **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md#admin-batches-tab)**.
+- **Voting groups:** There is no separate “prepare voting” control. On **OPEN → VOTING** (manual status change or cron with `autoTransition`), the app runs group + voter assignment once if needed — **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md#admin-batches-tab)**.
+
+---
+
 ## Prisma / Windows notes
 
 - If `prisma generate` fails with **EPERM** on Windows, close processes using `node_modules/.prisma` and retry.
@@ -179,6 +196,7 @@ Full table: [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)
 | Document | Contents |
 |----------|----------|
 | **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)** | **Current** — routes, schema, gaps vs PRD v2.2 |
+| **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md)** | Loading states, snackbars, `FormSubmitButton`, URL toasts, admin batch pickers |
 | **[`docs/README.md`](docs/README.md)** | Doc folder index |
 | **[`docs/STAKEHOLDER-DECISION-PRD-V2.2.md`](docs/STAKEHOLDER-DECISION-PRD-V2.2.md)** | Option A record |
 | **[`docs/PRD.md`](docs/PRD.md)** | Historical **v1.3** PRD (judge + Sheet) |

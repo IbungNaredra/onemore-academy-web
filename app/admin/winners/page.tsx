@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/guards";
 import { prisma } from "@/lib/prisma";
 import { adminClearPublish, adminPublishWinners } from "@/app/actions/admin";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { Prisma, SubmissionStatus } from "@prisma/client";
 
 type SubmissionWithUser = Prisma.SubmissionGetPayload<{ include: { user: true } }>;
@@ -49,9 +50,9 @@ export default async function AdminWinnersPage() {
                 </li>
               ))}
             </ul>
-            <button type="submit" className="cta-btn">
+            <FormSubmitButton type="submit" className="cta-btn" pendingLabel="Publishing…">
               Publish
-            </button>
+            </FormSubmitButton>
           </form>
           <form
             action={async () => {
@@ -60,9 +61,9 @@ export default async function AdminWinnersPage() {
             }}
             style={{ marginTop: 8 }}
           >
-            <button type="submit" className="admin-table-btn">
+            <FormSubmitButton type="submit" className="admin-table-btn" pendingLabel="Updating…">
               Un-publish this batch
-            </button>
+            </FormSubmitButton>
           </form>
         </section>
       ))}

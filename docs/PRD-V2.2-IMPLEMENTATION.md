@@ -9,7 +9,7 @@
 - **Participants** register with a Garena-domain email, submit UGC in-app during **OPEN** batches, and vote in **assigned groups** (Layer 1) with **1–5** scores, all-or-nothing per group.
 - **Roles:** `PARTICIPANT`, `FALLBACK_VOTER`, `INTERNAL_TEAM`, `ADMIN` (see `UserRole` in [`prisma/schema.prisma`](../prisma/schema.prisma)).
 - **Categories:** Mini Games vs **Real Life + Prompt** (`ContentCategory`).
-- **Batch lifecycle:** `OPEN` → `VOTING` → `CONCLUDED`; optional **`autoTransition`** + cron [`GET /api/cron/batch-transitions`](../app/api/cron/batch-transitions/route.ts) (`CRON_SECRET`).
+- **Batch lifecycle:** `OPEN` → `VOTING` → `CONCLUDED`; optional **`autoTransition`** + cron [`GET /api/cron/batch-transitions`](../app/api/cron/batch-transitions/route.ts) (`CRON_SECRET`). When status first becomes **`VOTING`**, Layer 1 groups and voter assignments are **prepared automatically** if not already done (see [Admin Batches tab](#admin-batches-tab)).
 - **Leaderboard:** published winners show **name, email, normalized score, link**; **Top 10** block on the same page for **ADMIN** + **INTERNAL_TEAM** only.
 - **Google Sheets / Forms:** **not integrated** (v2.2 §16).
 
@@ -46,6 +46,27 @@
 | Batch cron helper | [`lib/batch-jobs.ts`](../lib/batch-jobs.ts) |
 | Server actions | [`app/actions/submit.ts`](../app/actions/submit.ts), [`vote.ts`](../app/actions/vote.ts), [`admin.ts`](../app/actions/admin.ts) |
 | Registration API | [`app/api/auth/register/route.ts`](../app/api/auth/register/route.ts) |
+| UI feedback (snackbars, loading, redirect toasts) | [`docs/UI-PATTERNS.md`](UI-PATTERNS.md), [`components/snackbar-context.tsx`](../components/snackbar-context.tsx), [`lib/snackbar-url.ts`](../lib/snackbar-url.ts) |
+
+---
+
+## Admin Batches tab
+
+Route: [`/admin/batch`](../app/admin/batch/page.tsx). Server actions: [`app/actions/admin.ts`](../app/actions/admin.ts) (`adminSetBatchSchedule`, `adminSetBatchStatus`, `adminToggleAutoTransition`).
+
+### Schedule (date / time pickers)
+
+- The form uses the browser’s **native** `<input type="datetime-local">` for **Open**, **Voting start**, **Concluded**, and optional **Leaderboard publish**.
+- Values are **Asia/Shanghai** wall time (UTC+8, no DST), matching the copy on the page. Conversion helpers live in [`lib/datetime-shanghai.ts`](../lib/datetime-shanghai.ts): `formatUtcAsShanghaiDatetimeLocal` (DB → input) and `parseShanghaiDatetimeLocalToUtc` (submit → UTC `Date`). The database stores UTC instants.
+- **Validation:** Open must be before Voting start, and Voting start before Concluded; failures redirect with an error toast (`buildToastUrl`).
+
+### Voting groups preparation (updated mechanism)
+
+- There is **no** separate **“Prepare voting”** button. Preparation runs **automatically** when a batch transitions **OPEN → VOTING**:
+  - **Manual:** admin changes status with **Set status** → [`adminSetBatchStatus`](../app/actions/admin.ts) updates the row, then calls [`prepareBatchIfEnteringVoting`](../lib/voting-assign.ts).
+  - **Cron:** [`runBatchTransitions`](../lib/batch-jobs.ts) may set status to `VOTING` when `autoTransition` is on and wall-clock crosses `votingAt`; it then calls the same `prepareBatchIfEnteringVoting` helper.
+- [`prepareBatchIfEnteringVoting`](../lib/voting-assign.ts) only runs the heavy work ([`prepareBatchForVoting`](../lib/voting-assign.ts): eligibility refresh, Layer 1 groups for both categories, `voterAssignmentDone = true`) when **`voterAssignmentDone`** is still **false**, so idempotent re-entry to `VOTING` does not rebuild groups unnecessarily.
+- Each batch card shows **voters assigned** vs **voters not assigned** from `ProgramBatch.voterAssignmentDone`.
 
 ---
 
@@ -68,4 +89,4 @@
 
 ---
 
-*Maintained by engineering alongside schema and routes.*
+*Maintained by engineering alongside schema and routes. If you change user-visible feedback (snackbars, loading, redirect messages), update [`UI-PATTERNS.md`](UI-PATTERNS.md) as well. If you change batch schedule pickers, Shanghai parsing, or OPEN→VOTING group preparation, update this section and [`UI-PATTERNS.md`](UI-PATTERNS.md#admin-batches-tab).*

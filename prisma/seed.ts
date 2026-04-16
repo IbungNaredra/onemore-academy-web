@@ -117,7 +117,58 @@ async function main() {
     });
   }
 
+  /** Load-test cohort: 20 participants on Batch 1 — 10 MINI_GAMES + 10 REAL_LIFE_PROMPT (1 UGC each). */
+  const testParticipantPassword = process.env.TEST_PARTICIPANT_PASSWORD ?? "test123456";
+  const testHash = await bcrypt.hash(testParticipantPassword, 10);
+  if (b1) {
+    for (let i = 1; i <= 20; i++) {
+      const email = `test.ugc.p${String(i).padStart(2, "0")}@garena.com`;
+      const category =
+        i <= 10 ? ContentCategory.MINI_GAMES : ContentCategory.REAL_LIFE_PROMPT;
+      const slug = i <= 10 ? `mini-${i}` : `rl-${i - 10}`;
+      const contentUrl = `https://example.com/test-ugc/batch-1/${slug}`;
+
+      const user = await prisma.user.upsert({
+        where: { email },
+        update: { passwordHash: testHash, name: `Test UGC ${i}`, division: "Others", role: UserRole.PARTICIPANT },
+        create: {
+          email,
+          passwordHash: testHash,
+          name: `Test UGC ${i}`,
+          division: "Others",
+          role: UserRole.PARTICIPANT,
+        },
+      });
+
+      await prisma.submission.upsert({
+        where: {
+          batchId_contentUrl: { batchId: b1.id, contentUrl },
+        },
+        create: {
+          batchId: b1.id,
+          userId: user.id,
+          category,
+          contentUrl,
+        },
+        update: {},
+      });
+
+      await prisma.batchVoterEligibility.upsert({
+        where: { batchId_userId: { batchId: b1.id, userId: user.id } },
+        create: { batchId: b1.id, userId: user.id, canVote: true, adminOverride: false },
+        update: { canVote: true },
+      });
+    }
+  }
+
   console.log("Seed OK: admin", adminEmail, "; demo", demoParticipant, "/ participant123");
+  if (b1) {
+    console.log(
+      "Load-test UGC: 20 users test.ugc.p01@garena.com … test.ugc.p20@garena.com (password:",
+      testParticipantPassword,
+      ") — Batch 1: 10× MINI_GAMES, 10× REAL_LIFE_PROMPT",
+    );
+  }
 }
 
 main()

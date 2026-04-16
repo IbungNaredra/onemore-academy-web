@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { BatchStatus } from "@prisma/client";
 import { resolveSubmissionBatch } from "@/lib/submission-batch";
 import { createSubmission, deleteSubmission } from "@/app/actions/submit";
+import { FormSubmitButton } from "@/components/form-submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -55,9 +56,9 @@ export default async function SubmitPage() {
             onemore content URL (https)
             <input className="admin-input" name="contentUrl" type="url" placeholder="https://..." required />
           </label>
-          <button type="submit" className="cta-btn">
+          <FormSubmitButton type="submit" className="cta-btn" pendingLabel="Submitting…">
             Submit
-          </button>
+          </FormSubmitButton>
         </form>
       )}
 
@@ -73,9 +74,14 @@ export default async function SubmitPage() {
             </a>
             {s.batch.status === BatchStatus.OPEN && (
               <form action={deleteSubmission.bind(null, s.id)} style={{ display: "inline", marginLeft: 8 }}>
-                <button type="submit" className="week-btn" style={{ fontSize: "0.75rem" }}>
+                <FormSubmitButton
+                  type="submit"
+                  className="week-btn"
+                  style={{ fontSize: "0.75rem" }}
+                  pendingLabel="Deleting…"
+                >
                   Delete
-                </button>
+                </FormSubmitButton>
               </form>
             )}
           </li>

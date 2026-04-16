@@ -3,31 +3,37 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitGroupRatings } from "@/app/actions/vote";
+import { useSnackbar } from "@/components/snackbar-context";
 
 type Row = { id: string; url: string; creator: string };
 
 export function VoteGroupForm({ groupId, rows }: { groupId: string; rows: Row[] }) {
   const router = useRouter();
+  const { showError, showSuccess } = useSnackbar();
   const [scores, setScores] = useState<Record<string, number>>(() =>
     Object.fromEntries(rows.map((r) => [r.id, 3])),
   );
-  const [msg, setMsg] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setMsg(null);
-    const res = await submitGroupRatings(groupId, scores);
-    if (res.error) {
-      setMsg(res.error);
-      return;
+    setPending(true);
+    try {
+      const res = await submitGroupRatings(groupId, scores);
+      if (res.error) {
+        showError(res.error);
+        return;
+      }
+      showSuccess("Scores saved.");
+      router.push("/vote");
+      router.refresh();
+    } finally {
+      setPending(false);
     }
-    router.push("/vote");
-    router.refresh();
   }
 
   return (
     <form onSubmit={onSubmit} className="card">
-      {msg && <p className="terms-note">{msg}</p>}
       {rows.map((r) => (
         <div key={r.id} style={{ marginBottom: "1rem" }}>
           <p>
@@ -50,8 +56,13 @@ export function VoteGroupForm({ groupId, rows }: { groupId: string; rows: Row[] 
           </label>
         </div>
       ))}
-      <button type="submit" className="cta-btn">
-        Submit all scores for this group
+      <button
+        type="submit"
+        className={`cta-btn${pending ? " form-submit-btn--pending" : ""}`}
+        disabled={pending}
+        aria-busy={pending}
+      >
+        {pending ? "Saving…" : "Submit all scores for this group"}
       </button>
     </form>
   );

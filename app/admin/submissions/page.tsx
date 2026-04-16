@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/guards";
 import { prisma } from "@/lib/prisma";
 import { adminDisqualify } from "@/app/actions/admin";
+import { FormSubmitButton } from "@/components/form-submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -49,9 +50,14 @@ export default async function AdminSubmissionsPage() {
                     }}
                   >
                     <input name="reason" className="admin-input" placeholder="reason" required />
-                    <button type="submit" className="admin-table-btn" disabled={s.status === "DISQUALIFIED"}>
+                    <FormSubmitButton
+                      type="submit"
+                      className="admin-table-btn"
+                      disabled={s.status === "DISQUALIFIED"}
+                      pendingLabel="Applying…"
+                    >
                       DQ
-                    </button>
+                    </FormSubmitButton>
                   </form>
                 </td>
               </tr>

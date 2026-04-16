@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import { useState } from "react";
 
 function navClass(active: boolean) {
   return `nav-link${active ? " active" : ""}`;
@@ -11,6 +13,7 @@ function navClass(active: boolean) {
 export function SiteHeader() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
+  const [signOutPending, setSignOutPending] = useState(false);
   const isInfo = pathname === "/info" || pathname === "/";
   const isLeaderboard = pathname === "/leaderboard";
   const isFinalist = pathname === "/finalist";
@@ -28,8 +31,17 @@ export function SiteHeader() {
     <header className="site-header">
       <div className="header-inner">
         <div className="brand">
-          <span className="brand-badge">Shanghai</span>
-          <div>
+          <Link href="/info" className="brand-logo-link" aria-label="onemore challenge — Challenge info">
+            <Image
+              src="/onemore-logo.png"
+              alt=""
+              width={80}
+              height={100}
+              className="brand-logo-img"
+              priority
+            />
+          </Link>
+          <div className="brand-text">
             <h1 className="brand-title">onemore challenge</h1>
             <p className="brand-tagline">Prompt your creativity and get rewards</p>
           </div>
@@ -79,10 +91,15 @@ export function SiteHeader() {
           ) : session ? (
             <button
               type="button"
-              className="nav-link"
-              onClick={() => signOut({ callbackUrl: "/" })}
+              className={`nav-link${signOutPending ? " form-submit-btn--pending" : ""}`}
+              disabled={signOutPending}
+              aria-busy={signOutPending}
+              onClick={() => {
+                setSignOutPending(true);
+                void signOut({ callbackUrl: "/" });
+              }}
             >
-              Sign out
+              {signOutPending ? "Signing out…" : "Sign out"}
             </button>
           ) : (
             <Link href="/auth" className={navClass(pathname === "/auth")}>

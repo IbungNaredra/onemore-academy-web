@@ -4,16 +4,19 @@ import { useEffect, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { DIVISIONS, type Division } from "@/lib/divisions";
+import { useSnackbar } from "@/components/snackbar-context";
 
 export default function AuthPage() {
   const router = useRouter();
   const { status } = useSession();
+  const { showError, showSuccess } = useSnackbar();
   const [mode, setMode] = useState<"signin" | "register">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [division, setDivision] = useState<Division>(DIVISIONS[0]);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [signInPending, setSignInPending] = useState(false);
+  const [registerPending, setRegisterPending] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -43,37 +46,47 @@ export default function AuthPage() {
 
   async function onSignIn(e: React.FormEvent) {
     e.preventDefault();
-    setMsg(null);
-    const res = await signIn("credentials", { email, password, redirect: false });
-    if (res?.error) {
-      setMsg("Invalid email or password");
-      return;
+    setSignInPending(true);
+    try {
+      const res = await signIn("credentials", { email, password, redirect: false });
+      if (res?.error) {
+        showError("Invalid email or password.");
+        return;
+      }
+      showSuccess("Signed in.");
+      router.push("/me");
+      router.refresh();
+    } finally {
+      setSignInPending(false);
     }
-    router.push("/me");
-    router.refresh();
   }
 
   async function onRegister(e: React.FormEvent) {
     e.preventDefault();
-    setMsg(null);
-    const r = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, name, division }),
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      setMsg(data.error ?? "Registration failed");
-      return;
+    setRegisterPending(true);
+    try {
+      const r = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name, division }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        showError(data.error ?? "Registration failed");
+        return;
+      }
+      const res = await signIn("credentials", { email, password, redirect: false });
+      if (res?.error) {
+        showSuccess("Account created — sign in with your new password.");
+        setMode("signin");
+        return;
+      }
+      showSuccess("Welcome — you're signed in.");
+      router.push("/me");
+      router.refresh();
+    } finally {
+      setRegisterPending(false);
     }
-    const res = await signIn("credentials", { email, password, redirect: false });
-    if (res?.error) {
-      setMsg("Account created — use Sign in with your new password.");
-      setMode("signin");
-      return;
-    }
-    router.push("/me");
-    router.refresh();
   }
 
   return (
@@ -92,9 +105,9 @@ export default function AuthPage() {
             aria-selected={mode === "signin"}
             aria-controls="panel-signin"
             className="auth-segment__btn"
+            disabled={signInPending || registerPending}
             onClick={() => {
               setMode("signin");
-              setMsg(null);
             }}
           >
             Sign in
@@ -106,20 +119,14 @@ export default function AuthPage() {
             aria-selected={mode === "register"}
             aria-controls="panel-register"
             className="auth-segment__btn"
+            disabled={signInPending || registerPending}
             onClick={() => {
               setMode("register");
-              setMsg(null);
             }}
           >
             Create account
           </button>
         </div>
-
-        {msg && (
-          <p className="auth-message" role="alert">
-            {msg}
-          </p>
-        )}
 
         {mode === "signin" ? (
           <form
@@ -153,8 +160,13 @@ export default function AuthPage() {
                 autoComplete="current-password"
               />
             </div>
-            <button type="submit" className="cta-btn auth-submit">
-              Sign in
+            <button
+              type="submit"
+              className={`cta-btn auth-submit${signInPending ? " form-submit-btn--pending" : ""}`}
+              disabled={signInPending}
+              aria-busy={signInPending}
+            >
+              {signInPending ? "Signing in…" : "Sign in"}
             </button>
           </form>
         ) : (
@@ -217,8 +229,13 @@ export default function AuthPage() {
                 autoComplete="new-password"
               />
             </div>
-            <button type="submit" className="cta-btn auth-submit">
-              Create account
+            <button
+              type="submit"
+              className={`cta-btn auth-submit${registerPending ? " form-submit-btn--pending" : ""}`}
+              disabled={registerPending}
+              aria-busy={registerPending}
+            >
+              {registerPending ? "Creating account…" : "Create account"}
             </button>
           </form>
         )}

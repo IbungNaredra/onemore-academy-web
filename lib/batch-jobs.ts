@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { prepareBatchIfEnteringVoting } from "@/lib/voting-assign";
 import { BatchStatus, GroupValidity } from "@prisma/client";
 
 /** Advance batch.status when `autoTransition` and wall-clock UTC instant crosses thresholds. */
@@ -21,6 +22,11 @@ export async function runBatchTransitions(now: Date = new Date()) {
       });
       if (next === BatchStatus.CONCLUDED) {
         await flagUnderReviewedGroups(b.id);
+      }
+      try {
+        await prepareBatchIfEnteringVoting(b.id, b.status, next);
+      } catch (e) {
+        console.error("[runBatchTransitions] prepareBatchIfEnteringVoting", b.id, e);
       }
     }
   }

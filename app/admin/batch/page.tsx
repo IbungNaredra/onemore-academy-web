@@ -1,24 +1,15 @@
 import { requireAdmin } from "@/lib/guards";
 import { prisma } from "@/lib/prisma";
 import { BatchStatus } from "@prisma/client";
-import {
-  adminRunPrepareVoting,
-  adminSetBatchSchedule,
-  adminSetBatchStatus,
-  adminToggleAutoTransition,
-} from "@/app/actions/admin";
+import { adminSetBatchSchedule, adminSetBatchStatus, adminToggleAutoTransition } from "@/app/actions/admin";
 import { formatUtcAsShanghaiDatetimeLocal } from "@/lib/datetime-shanghai";
+import { FormSubmitButton } from "@/components/form-submit-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminBatchPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ ok?: string; error?: string }>;
-}) {
+export default async function AdminBatchPage() {
   await requireAdmin();
 
-  const sp = await searchParams;
   const batches = await prisma.programBatch.findMany({ orderBy: { batchNumber: "asc" } });
 
   return (
@@ -27,25 +18,10 @@ export default async function AdminBatchPage({
       <p className="hero-lead">
         Set the <strong>schedule</strong> (Asia/Shanghai) so submissions are accepted while the batch is{" "}
         <strong>OPEN</strong> and the current time is between <strong>Open</strong> and <strong>Voting start</strong>.
-        Before <strong>VOTING</strong>: run <strong>Prepare voting</strong> (eligibility + groups). Cron: GET{" "}
-        <code>/api/cron/batch-transitions</code> with <code>CRON_SECRET</code>.
+        When status becomes <strong>VOTING</strong> (cron or manual), groups and voter assignments are created
+        automatically if not already done. Cron: GET <code>/api/cron/batch-transitions</code> with{" "}
+        <code>CRON_SECRET</code>.
       </p>
-
-      {sp.ok === "schedule" && (
-        <p className="terms-note" role="status" style={{ color: "var(--cyan)" }}>
-          Schedule saved.
-        </p>
-      )}
-      {sp.error === "schedule" && (
-        <p className="form-error" role="alert">
-          Could not save schedule — check all required date/time fields (Asia/Shanghai format).
-        </p>
-      )}
-      {sp.error === "order" && (
-        <p className="form-error" role="alert">
-          Invalid order: Open must be before Voting start, and Voting start before Concluded.
-        </p>
-      )}
 
       {batches.map((b) => (
         <section key={b.id} className="card" style={{ marginBottom: "1rem" }}>
@@ -110,9 +86,9 @@ export default async function AdminBatchPage({
                 />
               </div>
             </div>
-            <button type="submit" className="admin-table-btn">
+            <FormSubmitButton type="submit" className="admin-table-btn" pendingLabel="Saving…">
               Save schedule
-            </button>
+            </FormSubmitButton>
           </form>
 
           <div className="admin-batch-actions">
@@ -130,9 +106,9 @@ export default async function AdminBatchPage({
                   </option>
                 ))}
               </select>
-              <button type="submit" className="admin-table-btn">
+              <FormSubmitButton type="submit" className="admin-table-btn" pendingLabel="Applying…">
                 Set status
-              </button>
+              </FormSubmitButton>
             </form>
             <form
               action={async () => {
@@ -140,19 +116,9 @@ export default async function AdminBatchPage({
                 await adminToggleAutoTransition(b.id, !b.autoTransition);
               }}
             >
-              <button type="submit" className="admin-table-btn">
+              <FormSubmitButton type="submit" className="admin-table-btn" pendingLabel="Updating…">
                 Auto transition: {b.autoTransition ? "ON" : "OFF"}
-              </button>
-            </form>
-            <form
-              action={async () => {
-                "use server";
-                await adminRunPrepareVoting(b.id);
-              }}
-            >
-              <button type="submit" className="cta-btn">
-                Prepare voting (groups)
-              </button>
+              </FormSubmitButton>
             </form>
           </div>
         </section>

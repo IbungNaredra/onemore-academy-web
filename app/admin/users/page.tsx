@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/guards";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
 import { adminResetPassword, adminSetUserRole } from "@/app/actions/admin";
+import { FormSubmitButton } from "@/components/form-submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +45,9 @@ export default async function AdminUsersPage() {
                         </option>
                       ))}
                     </select>
-                    <button type="submit" className="admin-table-btn">
+                    <FormSubmitButton type="submit" className="admin-table-btn" pendingLabel="Saving…">
                       Save role
-                    </button>
+                    </FormSubmitButton>
                   </form>
                 </td>
                 <td>
@@ -58,9 +59,9 @@ export default async function AdminUsersPage() {
                     }}
                   >
                     <input name="pw" type="password" className="admin-input" placeholder="temp password" required />
-                    <button type="submit" className="admin-table-btn">
+                    <FormSubmitButton type="submit" className="admin-table-btn" pendingLabel="Updating…">
                       Set
-                    </button>
+                    </FormSubmitButton>
                   </form>
                 </td>
               </tr>

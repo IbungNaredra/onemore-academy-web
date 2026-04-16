@@ -88,3 +88,25 @@ export async function prepareBatchForVoting(batchId: string) {
     data: { voterAssignmentDone: true },
   });
 }
+
+/**
+ * When a batch transitions OPEN → VOTING, build Layer 1 groups once if not already prepared.
+ * Skips if `voterAssignmentDone` is already true (groups already built for this batch).
+ */
+export async function prepareBatchIfEnteringVoting(
+  batchId: string,
+  previousStatus: BatchStatus,
+  newStatus: BatchStatus,
+): Promise<void> {
+  if (previousStatus !== BatchStatus.OPEN || newStatus !== BatchStatus.VOTING) {
+    return;
+  }
+  const batch = await prisma.programBatch.findUnique({
+    where: { id: batchId },
+    select: { voterAssignmentDone: true },
+  });
+  if (!batch || batch.voterAssignmentDone) {
+    return;
+  }
+  await prepareBatchForVoting(batchId);
+}

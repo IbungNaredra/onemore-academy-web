@@ -3,19 +3,19 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useSnackbar } from "@/components/snackbar-context";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/me";
+  const { showError } = useSnackbar();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     setPending(true);
     try {
       const res = await signIn("credentials", {
@@ -25,13 +25,13 @@ export function LoginForm() {
         callbackUrl,
       });
       if (res?.error) {
-        setError("Invalid email or password.");
-        setPending(false);
+        showError("Invalid email or password.");
         return;
       }
       window.location.href = res?.url ?? callbackUrl;
     } catch {
-      setError("Something went wrong.");
+      showError("Something went wrong.");
+    } finally {
       setPending(false);
     }
   }
@@ -62,8 +62,12 @@ export function LoginForm() {
           required
         />
       </div>
-      {error ? <p className="form-error">{error}</p> : null}
-      <button className="btn-primary" type="submit" disabled={pending}>
+      <button
+        className={`btn-primary${pending ? " form-submit-btn--pending" : ""}`}
+        type="submit"
+        disabled={pending}
+        aria-busy={pending}
+      >
         {pending ? "Signing in…" : "Sign in"}
       </button>
     </form>
