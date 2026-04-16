@@ -1836,6 +1836,67 @@ button.form-submit-btn--pending,
   color: var(--text-muted);
 }
 
+/* Vote flow — 5-star rating (see components/star-rating.tsx) */
+.star-rating {
+  display: inline-flex;
+  gap: 0.15rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+.star-rating__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.2rem;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.star-rating__btn:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* Empty / unselected: visible on dark cards (was too dark to see) */
+.star-rating__glyph {
+  font-size: 1.65rem;
+  line-height: 1;
+  color: #9aa3b8;
+  filter: none;
+  text-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.star-rating__btn--on .star-rating__glyph {
+  color: var(--cyan);
+  text-shadow: 0 0 12px rgba(45, 212, 191, 0.45);
+  filter: none;
+}
+
+.star-rating__btn:hover:not(.star-rating__btn--on) .star-rating__glyph {
+  color: #c5cad8;
+  filter: none;
+}
+
+.star-rating__btn--on:hover .star-rating__glyph {
+  color: var(--cyan-dim);
+}
+
+/* Vote form — label above stars (avoid --text-soft: too low contrast on cards) */
+.vote-rate-hint {
+  margin: 0 0 0.2rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 /* Global snackbar (see components/snackbar-context.tsx) */
 .snackbar-region {
   position: fixed;
