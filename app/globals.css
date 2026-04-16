@@ -1089,6 +1089,17 @@ select.admin-input option {
   cursor: not-allowed;
 }
 
+.admin-btn-danger {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #f87171;
+}
+
+.admin-btn-danger:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fecaca;
+}
+
 .admin-batch-actions {
   display: flex;
   flex-wrap: wrap;

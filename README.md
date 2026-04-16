@@ -108,7 +108,7 @@ Open [http://localhost:3000](http://localhost:3000) — `/` redirects to `/info`
 | `npm run db:migrate` | Migrations (dev) |
 | `npm run db:studio` | Prisma Studio |
 | `npm run db:seed` | Run `prisma/seed.ts` |
-| `npm run db:reset-ugc` | **Destructive:** delete all UGC (submissions, groups, ratings, winners, eligibility) and all users except `ADMIN` — see `scripts/reset-nonadmin-and-ugc.ts` |
+| `npm run db:reset-ugc` | **Destructive (whole DB):** delete all UGC and all users except `ADMIN` — see `scripts/reset-nonadmin-and-ugc.ts`. Per-batch **Reset batch for retest** in `/admin/batch` keeps submissions; see **Admin — Batches** below. |
 
 ---
 
@@ -142,7 +142,8 @@ docs/
   GOOGLE-SHEETS.md                   # Deprecated (v1.3 only)
 components/
   snackbar-context.tsx, snackbar-from-search-params.tsx, form-submit-button.tsx, providers.tsx
-  schedule-grid.tsx, leaderboard-view.tsx, layer2-voter-assign-form.tsx, publish-winners-form.tsx
+  schedule-grid.tsx, leaderboard-view.tsx, layer2-voter-assign-form.tsx, publish-winners-form.tsx,
+  admin-reset-batch-for-retest.tsx
 ```
 
 ---
@@ -186,6 +187,7 @@ Full table: [`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md)
 
 - **Schedule:** Native **`datetime-local`** inputs; times are edited as **Asia/Shanghai** and stored as UTC — see [`lib/datetime-shanghai.ts`](lib/datetime-shanghai.ts) and **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md#admin-batches-tab)**.
 - **Voting groups:** There is no separate “prepare voting” control. On **OPEN → VOTING** (manual status change or cron with `autoTransition`), the app runs group + voter assignment once if needed — **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md#admin-batches-tab)**.
+- **Reset batch for retest:** Per-batch button ([`components/admin-reset-batch-for-retest.tsx`](components/admin-reset-batch-for-retest.tsx)); **`window.confirm`** before submit. Server action [`adminResetBatchForRetest`](app/actions/admin.ts) **keeps all submissions (UGC)** for that batch, removes ratings, groups, voter assignments, published winners, and eligibility rows, clears **`normalizedScore` / `totalRatingsReceived` / `isFinalist`** on those submissions, resets `voterAssignmentDone` and publish/Layer 2 flags, then refreshes scores and eligibility. Use **OPEN → VOTING** again to rebuild Layer 1 groups from the retained UGC. This is **not** the same as **`npm run db:reset-ugc`** (that script deletes all non-admin users and all UGC globally).
 - **Which batch a submission uses** (OPEN + date window) and **how normalized scores update**: **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md#which-batch-gets-new-submissions-batchid)** · **[`#normalized-scores-when-they-update-vs-what-pages-read`](docs/PRD-V2.2-IMPLEMENTATION.md#normalized-scores-when-they-update-vs-what-pages-read)** · **[`docs/UI-PATTERNS.md`](docs/UI-PATTERNS.md#notes--batch-assignment--normalized-scores)** (short notes).
 - **Layer 2 (UNDER_REVIEWED):** at end of peer voting, **incomplete Layer 1 peer assignments are removed** (no-shows out of the 50% denominator), then **`UNDER_REVIEWED`** flagging; cron + manual status change; **`/admin/under-reviewed`**; vote queue rules for **fallback** vs others — **[`docs/PRD-V2.2-IMPLEMENTATION.md`](docs/PRD-V2.2-IMPLEMENTATION.md#layer-2--under-reviewed-prd-64)**.
 

@@ -56,6 +56,10 @@ Admin and submit flows use this pattern so users see success or error text witho
 
 - Group creation and voter assignment for Layer 1 are **not** triggered by a separate admin button. When status moves **OPEN → VOTING** (admin **Set status** or cron), [`prepareBatchIfEnteringVoting`](../lib/voting-assign.ts) runs once if `voterAssignmentDone` is still false — see **[`docs/PRD-V2.2-IMPLEMENTATION.md`](PRD-V2.2-IMPLEMENTATION.md#admin-batches-tab)** for the full flow and code pointers.
 
+### Reset batch for retest
+
+- **[`components/admin-reset-batch-for-retest.tsx`](../components/admin-reset-batch-for-retest.tsx)** — **`Reset batch for retest`** per batch; **`window.confirm`** lists what is removed (votes, groups, winners, eligibility) and that **UGC rows are kept**; submit uses [`adminResetBatchForRetest`](../app/actions/admin.ts) with a hidden **`confirm`** token. Button uses **`.admin-btn-danger`** in [`app/globals.css`](../app/globals.css).
+
 ### Admin Users — `FALLBACK_VOTER` role ([`/admin/users`](../app/admin/users/page.tsx))
 
 - When admin saves a user’s role as **`FALLBACK_VOTER`**, [`adminSetUserRole`](../app/actions/admin.ts) upserts **`BatchVoterEligibility`** for **every** `ProgramBatch` with **`canVote: true`** and **`adminOverride: true`**, so the user is eligible for voter assignment (including Layer 2) without manual per-batch toggles.

@@ -12,7 +12,7 @@ import {
   SubmissionStatus,
   GroupValidity,
 } from "@prisma/client";
-import { recomputeCanVote } from "@/lib/eligibility";
+import { recomputeAllEligibilityForBatch, recomputeCanVote } from "@/lib/eligibility";
 import { parseShanghaiDatetimeLocalToUtc } from "@/lib/datetime-shanghai";
 import { buildToastUrl } from "@/lib/snackbar-url";
 import { flagUnderReviewedGroups, pruneIncompletePeerLayer1Assignments } from "@/lib/batch-jobs";
@@ -109,6 +109,69 @@ export async function adminToggleAutoTransition(batchId: string, auto: boolean) 
   redirect(
     buildToastUrl("/admin/batch", "success", `Auto transition ${auto ? "on" : "off"}.`),
   );
+}
+
+const RESET_BATCH_CONFIRM = "RESET_BATCH_FOR_RETEST";
+
+/**
+ * Single-batch retest: **keeps all submissions (UGC)**. Removes ratings, groups, voter rows, winners,
+ * and eligibility for this batch; clears scores/finalist on submissions; clears Layer 2 flags on the batch.
+ * Next **OPEN → VOTING** rebuilds groups from existing submissions via {@link prepareBatchForVoting}.
+ * Requires {@link RESET_BATCH_CONFIRM} in form data (set by the confirmation UI).
+ */
+export async function adminResetBatchForRetest(batchId: string, formData: FormData) {
+  await requireAdminUser();
+  if (String(formData.get("confirm") ?? "") !== RESET_BATCH_CONFIRM) {
+    redirect(buildToastUrl("/admin/batch", "error", "Reset was not confirmed."));
+  }
+
+  const batch = await prisma.programBatch.findUnique({ where: { id: batchId } });
+  if (!batch) {
+    redirect(buildToastUrl("/admin/batch", "error", "Batch not found."));
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.rating.deleteMany({
+      where: {
+        OR: [{ submission: { batchId } }, { group: { batchId } }],
+      },
+    });
+    await tx.publishedWinner.deleteMany({ where: { batchId } });
+    await tx.groupSubmission.deleteMany({ where: { group: { batchId } } });
+    await tx.groupVoterAssignment.deleteMany({ where: { group: { batchId } } });
+    await tx.contentGroup.deleteMany({ where: { batchId } });
+    await tx.batchVoterEligibility.deleteMany({ where: { batchId } });
+
+    await tx.submission.updateMany({
+      where: { batchId },
+      data: {
+        normalizedScore: null,
+        totalRatingsReceived: 0,
+        isFinalist: false,
+      },
+    });
+
+    await tx.programBatch.update({
+      where: { id: batchId },
+      data: {
+        voterAssignmentDone: false,
+        winnersPublishedAt: null,
+        layer2EndsAt: null,
+      },
+    });
+  });
+
+  await refreshNormalizedScoresForBatchCategory(batchId, ContentCategory.MINI_GAMES);
+  await refreshNormalizedScoresForBatchCategory(batchId, ContentCategory.REAL_LIFE_PROMPT);
+  await recomputeAllEligibilityForBatch(batchId);
+
+  revalidatePath("/admin/batch");
+  revalidatePath("/admin/under-reviewed");
+  revalidatePath("/vote");
+  revalidatePath("/submit");
+  revalidatePath("/leaderboard");
+  revalidatePath("/finalist");
+  redirect(buildToastUrl("/admin/batch", "success", `Batch "${batch.label}" reset for retest.`));
 }
 
 export async function adminDisqualify(submissionId: string, reason: string) {

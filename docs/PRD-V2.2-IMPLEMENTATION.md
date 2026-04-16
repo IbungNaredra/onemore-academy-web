@@ -56,7 +56,7 @@
 
 ## Admin Batches tab
 
-Route: [`/admin/batch`](../app/admin/batch/page.tsx). Server actions: [`app/actions/admin.ts`](../app/actions/admin.ts) (`adminSetBatchSchedule`, `adminSetBatchStatus`, `adminToggleAutoTransition`).
+Route: [`/admin/batch`](../app/admin/batch/page.tsx). Server actions: [`app/actions/admin.ts`](../app/actions/admin.ts) (`adminSetBatchSchedule`, `adminSetBatchStatus`, `adminToggleAutoTransition`, `adminResetBatchForRetest`).
 
 ### Schedule (date / time pickers)
 
@@ -71,6 +71,13 @@ Route: [`/admin/batch`](../app/admin/batch/page.tsx). Server actions: [`app/acti
   - **Cron:** [`runBatchTransitions`](../lib/batch-jobs.ts) may set status from **`CLOSED` → `OPEN`** at `openAt`, then **`OPEN` → `VOTING`** when `autoTransition` is on and wall-clock crosses `votingAt`; on entering `VOTING` it calls the same `prepareBatchIfEnteringVoting` helper.
 - [`prepareBatchIfEnteringVoting`](../lib/voting-assign.ts) only runs the heavy work ([`prepareBatchForVoting`](../lib/voting-assign.ts): eligibility refresh, Layer 1 groups for both categories, `voterAssignmentDone = true`) when **`voterAssignmentDone`** is still **false**, so idempotent re-entry to `VOTING` does not rebuild groups unnecessarily.
 - Each batch card shows **voters assigned** vs **voters not assigned** from `ProgramBatch.voterAssignmentDone`.
+
+### Reset batch for retest
+
+- **UI:** [`components/admin-reset-batch-for-retest.tsx`](../components/admin-reset-batch-for-retest.tsx) — **`Reset batch for retest`** uses **`window.confirm`** before posting to [`adminResetBatchForRetest`](../app/actions/admin.ts) with a fixed `confirm` field (misclick protection).
+- **Behavior (single batch):** **Submissions (UGC) are retained.** Deletes ratings, `PublishedWinner`, `GroupSubmission`, `GroupVoterAssignment`, `ContentGroup`, and `BatchVoterEligibility` for that batch; sets `Submission.normalizedScore` / `totalRatingsReceived` / `isFinalist` cleared for submissions in the batch; clears `ProgramBatch.voterAssignmentDone`, `winnersPublishedAt`, `layer2EndsAt`; runs normalized-score refresh per category and `recomputeAllEligibilityForBatch`.
+- **Next step:** Set status and use **OPEN → VOTING** so [`prepareBatchIfEnteringVoting`](../lib/voting-assign.ts) can rebuild Layer 1 groups from existing submissions (when `voterAssignmentDone` is false).
+- **Not** the same as the global script [`scripts/reset-nonadmin-and-ugc.ts`](../scripts/reset-nonadmin-and-ugc.ts) (`npm run db:reset-ugc`), which removes all non-admin users and all UGC.
 
 ---
 

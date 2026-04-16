@@ -11,6 +11,7 @@ const BATCH_STATUS_OPTION_LABEL: Record<BatchStatus, string> = {
   [BatchStatus.CONCLUDED]: "CONCLUDED — pick winners / public leaderboard",
 };
 import { formatUtcAsShanghaiDatetimeLocal } from "@/lib/datetime-shanghai";
+import { AdminResetBatchForRetestForm } from "@/components/admin-reset-batch-for-retest";
 import { FormSubmitButton } from "@/components/form-submit-button";
 
 export const dynamic = "force-dynamic";
@@ -130,6 +131,7 @@ export default async function AdminBatchPage() {
                 Auto transition: {b.autoTransition ? "ON" : "OFF"}
               </FormSubmitButton>
             </form>
+            <AdminResetBatchForRetestForm batchId={b.id} batchLabel={b.label} />
           </div>
         </section>
       ))}
