@@ -1897,6 +1897,26 @@ button.form-submit-btn--pending,
   line-height: 1.4;
 }
 
+.vote-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0 0 0.35rem;
+}
+
+.vote-row-head__title {
+  font-size: 1rem;
+}
+
+/* Same gradient pill as .cta-btn submit, sized for inline row */
+.cta-btn--inline {
+  margin-top: 0;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 /* Global snackbar (see components/snackbar-context.tsx) */
 .snackbar-region {
   position: fixed;

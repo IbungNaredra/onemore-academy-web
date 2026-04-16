@@ -59,7 +59,7 @@ Admin and submit flows use this pattern so users see success or error text witho
 ## Vote queue (`/vote`)
 
 - [`app/vote/page.tsx`](../app/vote/page.tsx) does **not** list pending groups. It picks **one random** incomplete Layer 1 assignment and **`redirect`s** to `/vote/[groupId]`. Users cannot choose order. Returning to `/vote` after a submit repeats random selection among remaining groups. If there are no pending groups, the empty-state message is shown.
-- Group scoring uses [`components/star-rating.tsx`](../components/star-rating.tsx) (five stars, dim until chosen) inside [`components/vote-group-form.tsx`](../components/vote-group-form.tsx); all rows must be rated before submit.
+- Group scoring uses [`components/star-rating.tsx`](../components/star-rating.tsx) (five stars, dim until chosen) inside [`components/vote-group-form.tsx`](../components/vote-group-form.tsx); all rows must be rated before submit. On success, **`window.location.assign("/vote")`** advances to the next step (avoids re-enabling the button before soft navigation, which caused double-submit / “Already submitted”).
 
 ---
 
