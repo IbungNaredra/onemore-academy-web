@@ -117,6 +117,8 @@ const RESET_BATCH_CONFIRM = "RESET_BATCH_FOR_RETEST";
  * Single-batch retest: **keeps all submissions (UGC)**. Removes ratings, groups, voter rows, winners,
  * and eligibility for this batch; clears scores/finalist on submissions; clears Layer 2 flags on the batch.
  * Next **OPEN → VOTING** rebuilds groups from existing submissions via {@link prepareBatchForVoting}.
+ * Rolls the schedule forward from **now** (same phase lengths as before, min 1h each) and sets **OPEN** so
+ * submissions work and auto-transition does not immediately jump OPEN → VOTING with stale dates.
  * Requires {@link RESET_BATCH_CONFIRM} in form data (set by the confirmation UI).
  */
 export async function adminResetBatchForRetest(batchId: string, formData: FormData) {
@@ -129,6 +131,21 @@ export async function adminResetBatchForRetest(batchId: string, formData: FormDa
   if (!batch) {
     redirect(buildToastUrl("/admin/batch", "error", "Batch not found."));
   }
+
+  const now = new Date();
+  const minPhaseMs = 60 * 60 * 1000;
+  const openToVoteMs = Math.max(batch.votingAt.getTime() - batch.openAt.getTime(), minPhaseMs);
+  const voteToConcludedMs = Math.max(batch.concludedAt.getTime() - batch.votingAt.getTime(), minPhaseMs);
+  const newOpenAt = now;
+  const newVotingAt = new Date(now.getTime() + openToVoteMs);
+  const newConcludedAt = new Date(newVotingAt.getTime() + voteToConcludedMs);
+  const newLeaderboardPublishAt =
+    batch.leaderboardPublishAt != null
+      ? new Date(
+          newConcludedAt.getTime() +
+            Math.max(batch.leaderboardPublishAt.getTime() - batch.concludedAt.getTime(), 0),
+        )
+      : null;
 
   await prisma.$transaction(async (tx) => {
     await tx.rating.deleteMany({
@@ -154,6 +171,11 @@ export async function adminResetBatchForRetest(batchId: string, formData: FormDa
     await tx.programBatch.update({
       where: { id: batchId },
       data: {
+        status: BatchStatus.OPEN,
+        openAt: newOpenAt,
+        votingAt: newVotingAt,
+        concludedAt: newConcludedAt,
+        leaderboardPublishAt: newLeaderboardPublishAt,
         voterAssignmentDone: false,
         winnersPublishedAt: null,
         layer2EndsAt: null,

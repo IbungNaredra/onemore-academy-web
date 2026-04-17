@@ -36,9 +36,10 @@ export default async function SubmitPage() {
 
       {!submissionBatch ? (
         <p className="terms-note">
-          No batch is accepting submissions right now. Batches in the <strong>CLOSED</strong> state are not open yet;
-          submissions run only when a batch is <strong>OPEN</strong> and the current time is between that batch’s open
-          time and voting start (see Challenge info / admin schedule).
+          No batch is accepting submissions right now. Batches in the <strong>CLOSED</strong> state are not open yet.
+          The first batch (lowest number) needs the schedule window between <strong>open</strong> and <strong>voting
+          start</strong>; a later batch can open for submissions once earlier batches are no longer <strong>OPEN</strong>,
+          until that batch’s voting start (see Challenge info / admin schedule).
         </p>
       ) : (
         <form action={createSubmission} className="card" style={{ maxWidth: 520 }}>
