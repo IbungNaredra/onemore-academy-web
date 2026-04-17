@@ -10,6 +10,7 @@ export function CopyContentIdButton({ id }: { id: string }) {
     <button
       type="button"
       className="admin-table-btn"
+      aria-label={copied ? "Copied content id to clipboard" : "Copy submission content id to clipboard"}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(id);
@@ -20,7 +21,7 @@ export function CopyContentIdButton({ id }: { id: string }) {
         }
       }}
     >
-      {copied ? "Copied" : "Copy content id"}
+      {copied ? "Copied" : "Copy"}
     </button>
   );
 }

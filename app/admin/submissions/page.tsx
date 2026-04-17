@@ -110,7 +110,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
         </form>
       </div>
       <div className="card" style={{ overflowX: "auto" }}>
-        <table className="admin-table">
+        <table className="admin-table admin-submissions-table">
           <thead>
             <tr>
               <th>Batch</th>
@@ -136,17 +136,12 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
                   </a>
                 </td>
                 <td>
-                  <code className="admin-mono" style={{ fontSize: "0.8rem", wordBreak: "break-all" }}>
-                    {s.id}
-                  </code>
-                  <div style={{ marginTop: "0.35rem" }}>
-                    <CopyContentIdButton id={s.id} />
-                  </div>
+                  <CopyContentIdButton id={s.id} />
                 </td>
                 <td>{s.status}</td>
                 <td>
                   <form
-                    className="admin-table-form"
+                    className="admin-table-form admin-table-form--row"
                     action={async (fd: FormData) => {
                       "use server";
                       await adminDisqualify(s.id, String(fd.get("reason") ?? "DQ"));

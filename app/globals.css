@@ -1307,6 +1307,26 @@ button.form-submit-btn--pending,
   font-weight: 600;
 }
 
+/* Submissions — keep key headers & batch labels on one line; DQ reason + button inline */
+.admin-submissions-table th:nth-child(4),
+.admin-submissions-table th:nth-child(6) {
+  white-space: nowrap;
+}
+
+.admin-submissions-table td:nth-child(1) {
+  white-space: nowrap;
+}
+
+.admin-submissions-table td:nth-child(8) .admin-table-form--row .admin-input {
+  flex: 1 1 auto;
+  min-width: 5.5rem;
+  max-width: 11rem;
+}
+
+.admin-submissions-table td:nth-child(8) .admin-table-form--row .admin-table-btn {
+  white-space: nowrap;
+}
+
 .admin-table-compact td,
 .admin-table-compact th {
   padding: 0.4rem 0.5rem;
