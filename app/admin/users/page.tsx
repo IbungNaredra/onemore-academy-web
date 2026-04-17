@@ -1,19 +1,82 @@
 import { requireAdmin } from "@/lib/guards";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { UserRole } from "@prisma/client";
 import { adminResetPassword, adminSetUserRole } from "@/app/actions/admin";
 import { FormSubmitButton } from "@/components/form-submit-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminUsersPage() {
+type SearchParams = { q?: string | string[]; role?: string | string[] };
+
+export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   await requireAdmin();
 
-  const users = await prisma.user.findMany({ orderBy: { email: "asc" } });
+  const sp = await searchParams;
+  const rawQ = sp.q;
+  const q = typeof rawQ === "string" ? rawQ.trim() : "";
+  const rawRole = typeof sp.role === "string" ? sp.role.trim() : "";
+  const roleFilter: UserRole | undefined = Object.values(UserRole).includes(rawRole as UserRole)
+    ? (rawRole as UserRole)
+    : undefined;
+
+  const where: Prisma.UserWhereInput = {};
+  if (q) {
+    where.OR = [
+      { email: { contains: q, mode: "insensitive" } },
+      { name: { contains: q, mode: "insensitive" } },
+    ];
+  }
+  if (roleFilter) {
+    where.role = roleFilter;
+  }
+
+  const users = await prisma.user.findMany({
+    where: Object.keys(where).length ? where : undefined,
+    orderBy: { email: "asc" },
+  });
+
+  const hasFilters = Boolean(q || roleFilter);
 
   return (
     <main className="panel">
       <h2 className="section-h2">Users</h2>
+      <div className="card" style={{ marginBottom: "1rem" }}>
+        <form method="get" className="admin-toolbar-form admin-filter-bar" role="search">
+          <label className="admin-filter-field admin-filter-field--wide">
+            <span className="admin-filter-field__label">Email or name</span>
+            <input
+              type="search"
+              name="q"
+              defaultValue={q}
+              className="admin-input"
+              placeholder="e.g. @garena or Wei"
+              aria-label="Search by email or name"
+            />
+          </label>
+          <label className="admin-filter-field">
+            <span className="admin-filter-field__label">Role</span>
+            <select name="role" className="admin-input" defaultValue={roleFilter ?? ""} aria-label="Filter by role">
+              <option value="">All roles</option>
+              {Object.values(UserRole).map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="admin-filter-field admin-filter-field--actions">
+            <button type="submit" className="admin-table-btn">
+              Apply
+            </button>
+            {hasFilters ? (
+              <a href="/admin/users" className="nav-link">
+                Clear filters
+              </a>
+            ) : null}
+          </div>
+        </form>
+      </div>
       <div className="card" style={{ overflowX: "auto" }}>
         <table className="admin-table admin-users-table">
           <thead>

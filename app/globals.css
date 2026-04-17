@@ -1059,6 +1059,40 @@ select.admin-input option {
   flex: 0 1 auto;
 }
 
+/* Stacked label + control — avoids cramped inline labels wrapping one word per line */
+.admin-filter-bar {
+  align-items: flex-end;
+  gap: 1rem 1.25rem;
+}
+
+.admin-filter-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  min-width: min(100%, 13rem);
+  flex: 0 1 auto;
+}
+
+.admin-filter-field--wide {
+  min-width: min(100%, 18rem);
+}
+
+.admin-filter-field__label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1.25;
+}
+
+.admin-filter-field--actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: auto;
+  gap: 0.5rem;
+}
+
 /* Primary compact action next to inputs — same height as controls */
 .admin-table-btn {
   flex-shrink: 0;
