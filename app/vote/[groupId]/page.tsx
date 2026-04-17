@@ -6,6 +6,7 @@ import Link from "next/link";
 import { pendingVoteGroupsWhere } from "@/lib/vote-queue-where";
 import type { AppRole } from "@/auth";
 import { GroupValidity } from "@prisma/client";
+import { submissionDisplayTitle } from "@/lib/submission-display";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,7 @@ export default async function VoteGroupPage({ params }: { params: Promise<{ grou
   const rows = group.submissions.map((gs) => ({
     id: gs.submissionId,
     url: gs.submission.contentUrl,
-    creator: gs.submission.user.name,
+    creator: submissionDisplayTitle(gs.submission.contentTitle, gs.submission.user.name),
   }));
 
   return (

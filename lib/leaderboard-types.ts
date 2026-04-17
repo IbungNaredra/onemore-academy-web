@@ -21,6 +21,8 @@ export function batchStateDisplayName(s: PublicBatchState): string {
 }
 
 export type WinnerEntryDto = {
+  /** Participant-chosen title (shown as primary); legacy rows may mirror creator name. */
+  contentTitle: string;
   creatorName: string;
   creatorEmail: string;
   contentType: string;
@@ -42,7 +44,8 @@ export type LeaderboardBatchDto = {
 
 export type FinalistRow = {
   rank: number;
-  name: string;
+  contentTitle: string;
+  creatorName: string;
   email: string;
   score: number | null;
   contentUrl: string;

@@ -106,9 +106,10 @@ async function main() {
         batchId: b1.id,
         userId: part.id,
         category: ContentCategory.MINI_GAMES,
+        contentTitle: "Demo UGC — Batch 1",
         contentUrl: "https://example.com/demo-ugc/batch1",
       },
-      update: {},
+      update: { contentTitle: "Demo UGC — Batch 1" },
     });
     await prisma.batchVoterEligibility.upsert({
       where: { batchId_userId: { batchId: b1.id, userId: part.id } },
@@ -148,9 +149,10 @@ async function main() {
           batchId: b1.id,
           userId: user.id,
           category,
+          contentTitle: `Test title ${i} (${slug})`,
           contentUrl,
         },
-        update: {},
+        update: { contentTitle: `Test title ${i} (${slug})` },
       });
 
       await prisma.batchVoterEligibility.upsert({

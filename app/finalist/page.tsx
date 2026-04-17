@@ -18,7 +18,8 @@ function FinalistList({ rows, label }: { rows: FinalistRow[]; label: string }) {
     <ul className="terms-list compact">
       {rows.map((r) => (
         <li key={`${r.email}-${r.rank}-${r.contentUrl}`}>
-          <span className="admin-mono">#{r.rank}</span> {r.name} · {r.email} · {r.score != null ? r.score.toFixed(2) : "—"}{" "}
+          <span className="admin-mono">#{r.rank}</span> {r.contentTitle} · {r.creatorName} · {r.email} ·{" "}
+          {r.score != null ? r.score.toFixed(2) : "—"}{" "}
           <a href={r.contentUrl} target="_blank" rel="noopener noreferrer">
             View UGC
           </a>

@@ -5,6 +5,7 @@ import { FormSubmitButton } from "@/components/form-submit-button";
 
 export type PickableSubmission = {
   id: string;
+  contentTitle: string;
   submitterName: string;
   email: string;
   categoryLabel: string;
@@ -25,6 +26,7 @@ function matchesQuery(s: PickableSubmission, q: string) {
   if (!t) return true;
   return (
     s.id.toLowerCase().includes(t) ||
+    s.contentTitle.toLowerCase().includes(t) ||
     s.submitterName.toLowerCase().includes(t) ||
     s.email.toLowerCase().includes(t) ||
     s.categoryLabel.toLowerCase().includes(t) ||
@@ -135,7 +137,7 @@ export function PublishWinnersForm({
           id={`publish-winners-search-${batchId}`}
           type="search"
           className="layer2-voter-search"
-          placeholder="Search by ID, name, email, category, or score…"
+          placeholder="Search by ID, title, name, email, category, or score…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setOpen(true)}
@@ -167,8 +169,8 @@ export function PublishWinnersForm({
                         {isOn ? "☑" : "☐"}
                       </span>
                       <span>
-                        <code style={{ fontSize: "0.72rem" }}>{s.id}</code> · {s.submitterName} · {s.email} ·{" "}
-                        {s.categoryLabel} · {s.scoreLabel}
+                        <code style={{ fontSize: "0.72rem" }}>{s.id}</code> · {s.contentTitle} · {s.submitterName} ·{" "}
+                        {s.email} · {s.categoryLabel} · {s.scoreLabel}
                       </span>
                     </button>
                   </li>
@@ -188,13 +190,13 @@ export function PublishWinnersForm({
             {selectedRows.map((s) => (
               <li key={s.id} className="layer2-voter-chip">
                 <span className="layer2-voter-chip__text">
-                  {s.submitterName} · {s.categoryLabel} · {s.scoreLabel}
+                  {s.contentTitle} · {s.submitterName} · {s.categoryLabel} · {s.scoreLabel}
                 </span>
                 <button
                   type="button"
                   className="layer2-voter-chip__remove"
                   onClick={() => toggle(s.id)}
-                  aria-label={`Remove ${s.submitterName}`}
+                  aria-label={`Remove ${s.contentTitle}`}
                 >
                   ×
                 </button>

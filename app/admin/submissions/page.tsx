@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/guards";
 import { prisma } from "@/lib/prisma";
 import type { ContentCategory, Prisma } from "@prisma/client";
+import { submissionDisplayTitle } from "@/lib/submission-display";
 import { adminDisqualify } from "@/app/actions/admin";
 import { FormSubmitButton } from "@/components/form-submit-button";
 import { CopyContentIdButton } from "@/components/copy-content-id-button";
@@ -30,12 +31,11 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
 
   const where: Prisma.SubmissionWhereInput = {};
   if (q) {
-    where.user = {
-      OR: [
-        { email: { contains: q, mode: "insensitive" } },
-        { name: { contains: q, mode: "insensitive" } },
-      ],
-    };
+    where.OR = [
+      { user: { email: { contains: q, mode: "insensitive" } } },
+      { user: { name: { contains: q, mode: "insensitive" } } },
+      { contentTitle: { contains: q, mode: "insensitive" } },
+    ];
   }
   if (batchId) {
     where.batchId = batchId;
@@ -65,14 +65,14 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
       <div className="card" style={{ marginBottom: "1rem" }}>
         <form method="get" className="admin-toolbar-form admin-filter-bar" role="search">
           <label className="admin-filter-field admin-filter-field--wide">
-            <span className="admin-filter-field__label">User</span>
+            <span className="admin-filter-field__label">User / title</span>
             <input
               type="search"
               name="q"
               defaultValue={q}
               className="admin-input"
-              placeholder="Email or name"
-              aria-label="Search user by email or name"
+              placeholder="Email, name, or content title"
+              aria-label="Search by user email, name, or content title"
             />
           </label>
           <label className="admin-filter-field">
@@ -116,6 +116,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
               <th>Batch</th>
               <th>User</th>
               <th>Category</th>
+              <th>Content title</th>
               <th>URL</th>
               <th>Content id</th>
               <th>Status</th>
@@ -128,6 +129,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
                 <td>{s.batch.label}</td>
                 <td>{s.user.email}</td>
                 <td>{s.category}</td>
+                <td>{submissionDisplayTitle(s.contentTitle, s.user.name)}</td>
                 <td>
                   <a href={s.contentUrl} target="_blank" rel="noreferrer">
                     link

@@ -9,12 +9,19 @@ import { BatchStatus, ContentCategory } from "@prisma/client";
 import { buildToastUrl } from "@/lib/snackbar-url";
 import { redirect } from "next/navigation";
 
+const TITLE_MAX = 200;
+
 export async function createSubmission(formData: FormData) {
   const session = await requireParticipantSubmit();
 
   const category = String(formData.get("category") ?? "") as "MINI_GAMES" | "REAL_LIFE_PROMPT";
+  const contentTitle = String(formData.get("contentTitle") ?? "").trim();
   const contentUrl = String(formData.get("contentUrl") ?? "").trim();
 
+  if (!contentTitle) redirect(buildToastUrl("/submit", "error", "Add a content title."));
+  if (contentTitle.length > TITLE_MAX) {
+    redirect(buildToastUrl("/submit", "error", `Content title must be at most ${TITLE_MAX} characters.`));
+  }
   if (!contentUrl) redirect(buildToastUrl("/submit", "error", "Add a content URL."));
   if (category !== "MINI_GAMES" && category !== "REAL_LIFE_PROMPT") {
     redirect(buildToastUrl("/submit", "error", "Pick a valid category."));
@@ -39,6 +46,7 @@ export async function createSubmission(formData: FormData) {
         batchId,
         userId: session.user.id,
         category: category as ContentCategory,
+        contentTitle,
         contentUrl,
       },
     });

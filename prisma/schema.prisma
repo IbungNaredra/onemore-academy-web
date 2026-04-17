@@ -97,6 +97,8 @@ model Submission {
   userId               String
   user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   category             ContentCategory
+  /// Public-facing title for voting and leaderboard (participant-chosen).
+  contentTitle         String            @default("")
   contentUrl           String
   status               SubmissionStatus  @default(ACTIVE)
   disqualifyReason     String?

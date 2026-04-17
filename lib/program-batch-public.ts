@@ -7,6 +7,7 @@ import {
 } from "@/lib/leaderboard-types";
 import { BatchStatus, ContentCategory, SubmissionStatus } from "@prisma/client";
 import type { FinalistRow } from "@/lib/leaderboard-types";
+import { submissionDisplayTitle } from "@/lib/submission-display";
 
 export type { LeaderboardBatchDto, ScheduleBatchDto, WinnerEntryDto, PublicBatchState };
 export { batchStateLine } from "@/lib/leaderboard-types";
@@ -74,6 +75,7 @@ export async function getLeaderboardBatches(): Promise<LeaderboardBatchDto[]> {
       for (const w of b.winners) {
         const s = w.submission;
         const entry: WinnerEntryDto = {
+          contentTitle: submissionDisplayTitle(s.contentTitle, s.user.name),
           creatorName: s.user.name,
           creatorEmail: s.user.email,
           contentType: categoryLabel[s.category],
@@ -134,7 +136,8 @@ async function mapTop(batchId: string, category: ContentCategory): Promise<Final
   });
   return rows.map((r, i) => ({
     rank: i + 1,
-    name: r.user.name,
+    contentTitle: submissionDisplayTitle(r.contentTitle, r.user.name),
+    creatorName: r.user.name,
     email: r.user.email,
     score: r.normalizedScore,
     contentUrl: r.contentUrl,

@@ -4,6 +4,7 @@ import { adminClearPublish, adminPublishWinners } from "@/app/actions/admin";
 import { FormSubmitButton } from "@/components/form-submit-button";
 import { PublishWinnersForm } from "@/components/publish-winners-form";
 import { ContentCategory, Prisma, SubmissionStatus } from "@prisma/client";
+import { submissionDisplayTitle } from "@/lib/submission-display";
 
 type SubmissionWithUser = Prisma.SubmissionGetPayload<{ include: { user: true } }>;
 
@@ -58,6 +59,7 @@ export default async function AdminWinnersPage() {
             }}
             submissions={byBatch[b.id]!.map((s) => ({
               id: s.id,
+              contentTitle: submissionDisplayTitle(s.contentTitle, s.user.name),
               submitterName: s.user.name,
               email: s.user.email,
               categoryLabel: categoryLabel(s.category),

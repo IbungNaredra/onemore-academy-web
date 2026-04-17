@@ -3,6 +3,7 @@ import { requireParticipantSubmit } from "@/lib/guards";
 import { prisma } from "@/lib/prisma";
 import { BatchStatus } from "@prisma/client";
 import { resolveSubmissionBatch } from "@/lib/submission-batch";
+import { submissionDisplayTitle } from "@/lib/submission-display";
 import { createSubmission, deleteSubmission } from "@/app/actions/submit";
 import { FormSubmitButton } from "@/components/form-submit-button";
 
@@ -25,7 +26,7 @@ export default async function SubmitPage() {
 
   const mine = await prisma.submission.findMany({
     where: { userId: session.user.id },
-    include: { batch: true },
+    include: { batch: true, user: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -42,7 +43,7 @@ export default async function SubmitPage() {
           until that batch’s voting start (see Challenge info / admin schedule).
         </p>
       ) : (
-        <form action={createSubmission} className="card" style={{ maxWidth: 520 }}>
+        <form action={createSubmission} className="card submit-ugc-form" style={{ maxWidth: 520 }}>
           <p className="terms-note" style={{ marginBottom: "1rem" }}>
             Your entry will be submitted to <strong>{submissionBatch.label}</strong>. Submission window (China time,{" "}
             {tzShanghai}): {formatInstant(submissionBatch.openAt)} → {formatInstant(submissionBatch.votingAt)}.
@@ -53,6 +54,18 @@ export default async function SubmitPage() {
               <option value="MINI_GAMES">Mini Games</option>
               <option value="REAL_LIFE_PROMPT">Real Life + Prompt</option>
             </select>
+          </label>
+          <label>
+            Content title
+            <input
+              className="admin-input"
+              name="contentTitle"
+              type="text"
+              required
+              maxLength={200}
+              placeholder="Shown when voting and on the leaderboard"
+              autoComplete="off"
+            />
           </label>
           <label>
             onemore content URL (https)
@@ -71,6 +84,7 @@ export default async function SubmitPage() {
         {mine.map((s) => (
           <li key={s.id}>
             <strong>{s.batch.label}</strong> · {s.category.replace("_", " ")} ·{" "}
+            <em>{submissionDisplayTitle(s.contentTitle, s.user.name)}</em> ·{" "}
             <a href={s.contentUrl} target="_blank" rel="noreferrer">
               link
             </a>

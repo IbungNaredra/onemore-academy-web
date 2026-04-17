@@ -18,8 +18,9 @@ function TypeSection({ label, winners }: { label: string; winners: WinnerEntryDt
       <div className="winner-list">
         {winners.map((item) => (
           <article className="winner-item" key={`${item.creatorEmail}-${item.contentUrl}`}>
-            <p className="winner-item-name">{item.creatorName}</p>
+            <p className="winner-item-name">{item.contentTitle}</p>
             <p className="winner-item-type">{item.contentType}</p>
+            <p className="winner-item-creator">{item.creatorName}</p>
             <a className="winner-item-link" href={item.contentUrl} target="_blank" rel="noopener noreferrer">
               View UGC
             </a>
@@ -67,7 +68,9 @@ export function LeaderboardView({
     <>
       <div className="winners-head">
         <h2 className="section-h2">Winner of the Week</h2>
-        <p className="section-desc">Mini Games and Real Life + Prompt · published winners by creator display name.</p>
+        <p className="section-desc">
+          Mini Games and Real Life + Prompt · each entry shows the <strong>content title</strong> and creator name.
+        </p>
       </div>
 
       <div className="week-picker" role="tablist" aria-label="Select batch">
@@ -134,7 +137,7 @@ export function LeaderboardView({
                 <ul className="terms-list compact">
                   {f.mini.map((r) => (
                     <li key={r.email + r.rank}>
-                      #{r.rank} {r.name} · {r.email} · {r.score?.toFixed(2) ?? "—"}{" "}
+                      #{r.rank} {r.contentTitle} · {r.creatorName} · {r.email} · {r.score?.toFixed(2) ?? "—"}{" "}
                       <a href={r.contentUrl} target="_blank" rel="noreferrer">
                         link
                       </a>
@@ -145,7 +148,7 @@ export function LeaderboardView({
                 <ul className="terms-list compact">
                   {f.rl.map((r) => (
                     <li key={r.email + r.rank}>
-                      #{r.rank} {r.name} · {r.email} · {r.score?.toFixed(2) ?? "—"}{" "}
+                      #{r.rank} {r.contentTitle} · {r.creatorName} · {r.email} · {r.score?.toFixed(2) ?? "—"}{" "}
                       <a href={r.contentUrl} target="_blank" rel="noreferrer">
                         link
                       </a>
