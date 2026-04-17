@@ -204,7 +204,6 @@ export async function adminDisqualify(submissionId: string, reason: string) {
   });
   await recomputeCanVote(sub.batchId, sub.userId);
   revalidatePath("/admin/submissions");
-  redirect(buildToastUrl("/admin/submissions", "success", "Submission disqualified."));
 }
 
 export async function adminSetUserRole(userId: string, role: UserRole) {

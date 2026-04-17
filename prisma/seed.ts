@@ -44,20 +44,6 @@ async function main() {
     },
   });
 
-  const demoParticipant = "participant.demo@garena.com";
-  const pHash = await bcrypt.hash("participant123", 10);
-  await prisma.user.upsert({
-    where: { email: demoParticipant },
-    update: { passwordHash: pHash },
-    create: {
-      email: demoParticipant,
-      passwordHash: pHash,
-      name: "Demo Participant",
-      division: "Others",
-      role: UserRole.PARTICIPANT,
-    },
-  });
-
   const batchDefs = [
     { slug: "batch-1", label: "Batch 1", batchNumber: 1, ...B1 },
     { slug: "batch-2", label: "Batch 2", batchNumber: 2, ...B2 },
@@ -93,32 +79,9 @@ async function main() {
   }
 
   const b1 = await prisma.programBatch.findUnique({ where: { slug: "batch-1" } });
-  const part = await prisma.user.findUnique({ where: { email: demoParticipant } });
-  if (b1 && part) {
-    await prisma.submission.upsert({
-      where: {
-        batchId_contentUrl: {
-          batchId: b1.id,
-          contentUrl: "https://example.com/demo-ugc/batch1",
-        },
-      },
-      create: {
-        batchId: b1.id,
-        userId: part.id,
-        category: ContentCategory.MINI_GAMES,
-        contentTitle: "Demo UGC — Batch 1",
-        contentUrl: "https://example.com/demo-ugc/batch1",
-      },
-      update: { contentTitle: "Demo UGC — Batch 1" },
-    });
-    await prisma.batchVoterEligibility.upsert({
-      where: { batchId_userId: { batchId: b1.id, userId: part.id } },
-      create: { batchId: b1.id, userId: part.id, canVote: true, adminOverride: false },
-      update: { canVote: true },
-    });
-  }
+  const allBatches = await prisma.programBatch.findMany({ select: { id: true } });
 
-  /** Load-test cohort: 20 participants on Batch 1 — 10 MINI_GAMES + 10 REAL_LIFE_PROMPT (1 UGC each). */
+  /** 20 participants on Batch 1 — 10 MINI_GAMES + 10 REAL_LIFE_PROMPT (1 UGC each). */
   const testParticipantPassword = process.env.TEST_PARTICIPANT_PASSWORD ?? "test123456";
   const testHash = await bcrypt.hash(testParticipantPassword, 10);
   if (b1) {
@@ -149,10 +112,10 @@ async function main() {
           batchId: b1.id,
           userId: user.id,
           category,
-          contentTitle: `Test title ${i} (${slug})`,
+          contentTitle: `Test title ${i}`,
           contentUrl,
         },
-        update: { contentTitle: `Test title ${i} (${slug})` },
+        update: { contentTitle: `Test title ${i}` },
       });
 
       await prisma.batchVoterEligibility.upsert({
@@ -214,10 +177,40 @@ async function main() {
     });
   }
 
-  console.log("Seed OK: admin", adminEmail, "; demo", demoParticipant, "/ participant123");
+  /** Fallback voters: 5 accounts — voter eligibility on all batches (same pattern as admin role change). */
+  const fallbackPassword = process.env.TEST_FALLBACK_VOTER_PASSWORD ?? testParticipantPassword;
+  const fallbackHash = await bcrypt.hash(fallbackPassword, 10);
+  for (let i = 1; i <= 5; i++) {
+    const email = `test.fallback.p${String(i).padStart(2, "0")}@garena.com`;
+    const fb = await prisma.user.upsert({
+      where: { email },
+      update: {
+        passwordHash: fallbackHash,
+        name: `Fallback Voter ${i}`,
+        division: "Others",
+        role: UserRole.FALLBACK_VOTER,
+      },
+      create: {
+        email,
+        passwordHash: fallbackHash,
+        name: `Fallback Voter ${i}`,
+        division: "Others",
+        role: UserRole.FALLBACK_VOTER,
+      },
+    });
+    for (const b of allBatches) {
+      await prisma.batchVoterEligibility.upsert({
+        where: { batchId_userId: { batchId: b.id, userId: fb.id } },
+        create: { batchId: b.id, userId: fb.id, canVote: true, adminOverride: true },
+        update: { canVote: true, adminOverride: true },
+      });
+    }
+  }
+
+  console.log("Seed OK: admin", adminEmail);
   if (b1) {
     console.log(
-      "Load-test UGC: 20 users test.ugc.p01@garena.com … test.ugc.p20@garena.com (password:",
+      "UGC submitters: 20 users test.ugc.p01@garena.com … test.ugc.p20@garena.com (password:",
       testParticipantPassword,
       ") — Batch 1: 10× MINI_GAMES, 10× REAL_LIFE_PROMPT",
     );
@@ -228,6 +221,11 @@ async function main() {
   console.log(
     "Internal team: internal.team.it01@garena.com … internal.team.it10@garena.com (password:",
     internalTeamPassword,
+    ")",
+  );
+  console.log(
+    "Fallback voters: test.fallback.p01@garena.com … test.fallback.p05@garena.com (password:",
+    fallbackPassword,
     ")",
   );
 }

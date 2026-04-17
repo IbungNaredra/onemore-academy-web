@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {};
+/** Keep Prisma on the server bundle edge so the client engine + error types behave reliably (Next + Prisma guidance). */
+const nextConfig: NextConfig = {
+  serverExternalPackages: ["@prisma/client"],
+};
 
 export default nextConfig;

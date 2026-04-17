@@ -1,10 +1,7 @@
 import { requireAdmin } from "@/lib/guards";
 import { prisma } from "@/lib/prisma";
 import type { ContentCategory, Prisma } from "@prisma/client";
-import { submissionDisplayTitle } from "@/lib/submission-display";
-import { adminDisqualify } from "@/app/actions/admin";
-import { FormSubmitButton } from "@/components/form-submit-button";
-import { CopyContentIdButton } from "@/components/copy-content-id-button";
+import { AdminSubmissionsTable } from "@/components/admin-submissions-table";
 
 export const dynamic = "force-dynamic";
 
@@ -110,58 +107,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
         </form>
       </div>
       <div className="card" style={{ overflowX: "auto" }}>
-        <table className="admin-table admin-submissions-table">
-          <thead>
-            <tr>
-              <th>Batch</th>
-              <th>User</th>
-              <th>Category</th>
-              <th>Content title</th>
-              <th>URL</th>
-              <th>Content id</th>
-              <th>Status</th>
-              <th>Disqualify</th>
-            </tr>
-          </thead>
-          <tbody>
-            {submissions.map((s) => (
-              <tr key={s.id}>
-                <td>{s.batch.label}</td>
-                <td>{s.user.email}</td>
-                <td>{s.category}</td>
-                <td>{submissionDisplayTitle(s.contentTitle, s.user.name)}</td>
-                <td>
-                  <a href={s.contentUrl} target="_blank" rel="noreferrer">
-                    link
-                  </a>
-                </td>
-                <td>
-                  <CopyContentIdButton id={s.id} />
-                </td>
-                <td>{s.status}</td>
-                <td>
-                  <form
-                    className="admin-table-form admin-table-form--row"
-                    action={async (fd: FormData) => {
-                      "use server";
-                      await adminDisqualify(s.id, String(fd.get("reason") ?? "DQ"));
-                    }}
-                  >
-                    <input name="reason" className="admin-input" placeholder="reason" required />
-                    <FormSubmitButton
-                      type="submit"
-                      className="admin-table-btn"
-                      disabled={s.status === "DISQUALIFIED"}
-                      pendingLabel="Applying…"
-                    >
-                      DQ
-                    </FormSubmitButton>
-                  </form>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <AdminSubmissionsTable submissions={submissions} />
       </div>
     </main>
   );

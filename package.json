@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset-ugc": "tsx scripts/reset-nonadmin-and-ugc.ts",
+    "fill-ugc-votes": "tsx scripts/fill-ugc-test-votes.ts",
     "minify:google-key": "node scripts/minify-service-account-json.mjs"
   },
   "dependencies": {

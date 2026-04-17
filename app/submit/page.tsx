@@ -68,7 +68,7 @@ export default async function SubmitPage() {
             />
           </label>
           <label>
-            onemore content URL (https)
+            Content URL (https)
             <input className="admin-input" name="contentUrl" type="url" placeholder="https://..." required />
           </label>
           <FormSubmitButton type="submit" className="cta-btn" pendingLabel="Submitting…">
@@ -89,16 +89,21 @@ export default async function SubmitPage() {
               link
             </a>
             {s.batch.status === BatchStatus.OPEN && (
-              <form action={deleteSubmission.bind(null, s.id)} style={{ display: "inline", marginLeft: 8 }}>
-                <FormSubmitButton
-                  type="submit"
-                  className="week-btn"
-                  style={{ fontSize: "0.75rem" }}
-                  pendingLabel="Deleting…"
-                >
-                  Delete
-                </FormSubmitButton>
-              </form>
+              <span className="submit-row-actions">
+                <Link href={`/submit/${s.id}/edit`} className="week-btn submit-row-actions__link">
+                  Edit
+                </Link>
+                <form action={deleteSubmission.bind(null, s.id)} className="submit-row-actions__delete">
+                  <FormSubmitButton
+                    type="submit"
+                    className="week-btn"
+                    style={{ fontSize: "0.75rem" }}
+                    pendingLabel="Deleting…"
+                  >
+                    Delete
+                  </FormSubmitButton>
+                </form>
+              </span>
             )}
           </li>
         ))}

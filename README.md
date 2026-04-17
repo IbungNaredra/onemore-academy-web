@@ -78,12 +78,11 @@ Apply all migrations in `prisma/migrations/` in order (base schema, then `INTERN
 Seed creates:
 
 - **Admin** user (default `admin.onemorechallenge@garena.com` / `admin123` unless overridden by env)
-- **Demo participant** (`participant.demo@garena.com` / `participant123`)
 - **Three batches** (`batch-1` … `batch-3`) with PRD-style May 2026 dates — each is explicitly set to **`OPEN`** (schema default for new rows is **`CLOSED`**)
-- One **demo submission** on Batch 1 for the demo participant
-- **Load-test UGC cohort:** 20 participants `test.ugc.p01@garena.com` … `test.ugc.p20@garena.com` (password `test123456` or `TEST_PARTICIPANT_PASSWORD`) — **10× Mini Games + 10× Real Life + Prompt** on Batch 1 (one UGC each)
-- **No-UGC voters:** 5 participants `test.nosub.p01@garena.com` … `test.nosub.p05@garena.com` (same password) — eligible to vote on Batch 1, **no** submission
+- **UGC cohort:** 20 participants `test.ugc.p01@garena.com` … `test.ugc.p20@garena.com` (password `test123456` or `TEST_PARTICIPANT_PASSWORD`) — **10× Mini Games + 10× Real Life + Prompt** on Batch 1 (one UGC each)
+- **No-UGC voters:** 5 participants `test.nosub.p01@garena.com` … `test.nosub.p05@garena.com` (same password as UGC cohort) — eligible to vote on Batch 1, **no** submission
 - **Internal team:** 10 users `internal.team.it01@garena.com` … `internal.team.it10@garena.com` (password `12345678` or `TEST_INTERNAL_TEAM_PASSWORD`) for Layer 2 / finalist / Top 10 testing
+- **Fallback voters:** 5 users `test.fallback.p01@garena.com` … `test.fallback.p05@garena.com` (password `test123456` or `TEST_FALLBACK_VOTER_PASSWORD`, defaulting to `TEST_PARTICIPANT_PASSWORD`) — voter eligibility on all batches
 
 ### 4. Run the app
 
